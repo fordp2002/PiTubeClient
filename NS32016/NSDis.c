@@ -361,73 +361,93 @@ void ShowRegs(uint8_t Pattern, uint8_t Reverse)
    PiTRACE("]");
 }
 
-const char PostFixLk[] = "BWTD";
+const char PostFixLk[] = "BWTD????";
 const char PostFltLk[] = "123F567L";
 const char EightSpaces[] = "        ";
 
-void AddInstructionText(uint32_t Function, uint32_t opcode, uint32_t OperandSize)
+char GetText(OpDetail Info)
 {
-   if (Function < InstructionCount)
+   uint32_t Size = Info.Size;
+
+   if (Size--)
    {
+      if (Size < 8)
+      {
+         if (Info.Class & 0x80)
+         {
+            return PostFltLk[Size];
+         }
+      }
+
+      return PostFixLk[Size];
+   }
+
+   return '?';
+}
+
+void AddInstructionText(DecodeData* This)
+{
+   if (This->Function < InstructionCount)
+   {
+      uint32_t OperandSize = This->Info.Op[1].Size;
       char Str[80];
 
-      switch (Function)
+      if (This->Function == Scond)
       {
-         case Scond:
-         {
-            uint32_t Condition = ((opcode >> 7) & 0x0F);
-            sprintf(Str, "S%s", &InstuctionText[Condition][1]);             // Offset by 1 to lose the 'B'
-         }
-         break;
-
-         case SFSR:
-         case LFSR:
-         {
-            OperandSize = 0;
-         }
-         // Fall Through
-
-         default:
-         {
-            sprintf(Str, "%s", InstuctionText[Function]);
-         }
+         uint32_t Condition = ((This->OpCode >> 7) & 0x0F);
+         sprintf(Str, "S%s", &InstuctionText[Condition][1]);             // Offset by 1 to lose the 'B'
       }
-
-      if ((opcode & 0x80FF) == 0x800E)
+      else
       {
-         OperandSize = Translating;
-      }
+         sprintf(Str, "%s", InstuctionText[This->Function]);
 
-      if (OperandSize)
-      {
-         OperandSize--;
-         uint32_t Format = Function >> 4;
-
-         if (Format >= 9)
+         switch (This->Function)
          {
-            sprintf(Str + strlen(Str), "%c", PostFltLk[OperandSize & 7]);                 // Offset by 1 to loose the 'B'
+            case MOVif:
+            case ROUND:
+            case TRUNC:
+            case FLOOR:
+            {
+               sprintf(Str + strlen(Str), "%c%c", GetText(This->Info.Op[0]), GetText(This->Info.Op[1]));
+            }
+            // Fall Through
+
+            case SFSR:
+            case LFSR:
+            {
+               OperandSize = 0;
+            }
+            break;
+         }
+
+         if ((This->OpCode & 0x80FF) == 0x800E)
+         {
+            sprintf(Str + strlen(Str), "T");                 // Offset by 1 to loose the 'B'
          }
          else
          {
-            sprintf(Str + strlen(Str), "%c", PostFixLk[OperandSize & 3]);                 // Offset by 1 to loose the 'B'
+            if (OperandSize)
+            {
+               sprintf(Str + strlen(Str), "%c", GetText(This->Info.Op[0]));                 // Offset by 1 to loose the 'B'
+            }
          }
-      }
 
-      switch (Function)
-      {
-         case MOVXiW:
-         case MOVZiW:
+         switch (This->Function)
          {
-            sprintf(Str + strlen(Str), "W");
-         }
-         break;
+            case MOVXiW:
+            case MOVZiW:
+            {
+               sprintf(Str + strlen(Str), "W");
+            }
+            break;
 
-         case MOVZiD:
-         case MOVXiD:
-         {
-            sprintf(Str + strlen(Str), "D");
+            case MOVZiD:
+            case MOVXiD:
+            {
+               sprintf(Str + strlen(Str), "D");
+            }
+            break;
          }
-         break;
       }
 
       size_t Len = strlen(Str);
@@ -504,7 +524,18 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
 
       if (Function < InstructionCount)
       {
-         AddInstructionText(Function, opcode, OperandSize);
+         DecodeData This;
+         This.StartAddress = StartPc;
+         This.Function = Function;
+         This.Info.Whole = OpFlags[Function];
+         This.Info.Op[0].Size = FredSize.Op[0];
+         This.Info.Op[1].Size = FredSize.Op[1];
+         This.CurrentAddress = *pPC;
+         This.OpCode = opcode;
+         This.Regs[0] = Regs[0];
+         This.Regs[1] = Regs[1];
+
+         AddInstructionText(&This);
 
          switch (Function)
          {
@@ -532,16 +563,7 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
             break;
          }
 
-         DecodeData This;
-         This.StartAddress = StartPc;
-         This.Function = Function;
-         This.Info.Whole = OpFlags[Function];
-         This.Info.Op[0].Size = FredSize.Op[0];
-         This.Info.Op[1].Size = FredSize.Op[1];
-         This.CurrentAddress = *pPC;
-         This.OpCode = opcode;
-         This.Regs[0] = Regs[0];
-         This.Regs[1] = Regs[1];
+
          RegLookUp(&This);
 
          if ((Function <= BN) || (Function == BSR))
