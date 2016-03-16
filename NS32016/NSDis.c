@@ -122,7 +122,7 @@ const char InstuctionText[InstructionCount][8] =
    "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP",
 
    // FORMAT 11
-   "ADDf", "MOVf", "CMPf", "TRAP", "SUBf", "NEGf", "TRAP", "TRAP", "DIVf", "TRAP", "TRAP", "TRAP", "MULf", "ABSf", "TRAP", "TRAP",
+   "ADD", "MOV", "CMP", "TRAP", "SUB", "NEG", "TRAP", "TRAP", "DIV", "TRAP", "TRAP", "TRAP", "MUL", "ABS", "TRAP", "TRAP",
 
    // FORMAT 12
    "TRAP", "TRAP", "POLY", "DOT", "SCALB", "LOGB", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP", "TRAP",
@@ -137,17 +137,47 @@ const char InstuctionText[InstructionCount][8] =
    "TRAP"
 };
 
-void GetOperandText(uint32_t Start, uint32_t* pPC, RegLKU Pattern, uint32_t c)
-{
-   const char RegLetter[] = "RFD*****";
 
-  if (Pattern.OpType < 8)
-  {
+int64_t GetImmediate(DecodeData* This, uint32_t Index)
+{
+   int64_t Result;
+   MultiReg Temp;
+   uint32_t Size = This->Info.Op[Index].Size;
+
+   Temp.u32 = SWAP32(read_x32(This->CurrentAddress));
+
+   if (Size == sz8)
+   {
+      Result = Temp.u8;
+   }
+   else if (Size == sz16)
+   {
+      Result = Temp.u16;
+   }
+   else if (Size == sz32)
+   {
+      Result = Temp.u32;
+   }
+   else
+   {
+      Result = (((int64_t) Temp.u32) << 32) | SWAP32(read_x32(This->CurrentAddress + 4));
+   }
+
+   This->CurrentAddress += Size;
+   return Result;
+}
+
+void GetOperandText(DecodeData* This, RegLKU Pattern, uint32_t Index)
+{
+   const char RegLetter[] = "RDF*****";
+
+   if (Pattern.OpType < 8)
+   {
       PiTRACE("%c%0" PRId32, RegLetter[Pattern.RegType], Pattern.OpType);
    }
-   else if (Pattern.Whole < 16)
+   else if (Pattern.OpType < 16)
    {
-      int32_t d = GetDisplacement(pPC);
+      int32_t d = GetDisplacement(&This->CurrentAddress);
       PiTRACE("%0" PRId32 "(R%u)", d, (Pattern.Whole & 7));
    }
    else
@@ -156,24 +186,24 @@ void GetOperandText(uint32_t Start, uint32_t* pPC, RegLKU Pattern, uint32_t c)
       {
          case FrameRelative:
          {
-            int32_t d1 = GetDisplacement(pPC);
-            int32_t d2 = GetDisplacement(pPC);
+            int32_t d1 = GetDisplacement(&This->CurrentAddress);
+            int32_t d2 = GetDisplacement(&This->CurrentAddress);
             PiTRACE("%" PRId32 "(%" PRId32 "(FP))", d2, d1);
          }
          break;
 
          case StackRelative:
          {
-            int32_t d1 = GetDisplacement(pPC);
-            int32_t d2 = GetDisplacement(pPC);
+            int32_t d1 = GetDisplacement(&This->CurrentAddress);
+            int32_t d2 = GetDisplacement(&This->CurrentAddress);
             PiTRACE("%" PRId32 "(%" PRId32 "(SP))", d2, d1);
          }
          break;
 
          case StaticRelative:
          {
-            int32_t d1 = GetDisplacement(pPC);
-            int32_t d2 = GetDisplacement(pPC);
+            int32_t d1 = GetDisplacement(&This->CurrentAddress);
+            int32_t d2 = GetDisplacement(&This->CurrentAddress);
             PiTRACE("%" PRId32 "(%" PRId32 "(SB))", d2 , d1);
          }
          break;
@@ -186,33 +216,39 @@ void GetOperandText(uint32_t Start, uint32_t* pPC, RegLKU Pattern, uint32_t c)
 
          case Immediate:
          {
-            int32_t Value;
-            MultiReg temp3;
-
-            temp3.u32 = SWAP32(read_x32(*pPC));
-            if (FredSize.Op[c] == sz8)
-               Value = temp3.u8;
-            else if (FredSize.Op[c] == sz16)
-               Value = temp3.u16;
+            Temp64Type Value;
+            Value.s64 = GetImmediate(This, Index);
+            if (This->Info.Op[Index].Class & 0x80)
+            {
+               if (This->Info.Op[Index].Size == sz32)
+               {
+                  Temp32Type Value32;
+                  Value32.u32 = (uint32_t) Value.u64;
+                  PiTRACE("%g", Value32.f32);
+               }
+               else
+               {
+                  PiTRACE("%g", Value.f64);
+               }
+            }
             else
-               Value = temp3.u32;
-
-            (*pPC) += FredSize.Op[c];
-            PiTRACE(HEX32, Value);
+            {
+               PiTRACE(HEX32, Value);
+            }
          }
          break;
 
          case Absolute:
          {
-            int32_t d = GetDisplacement(pPC);
+            int32_t d = GetDisplacement(&This->CurrentAddress);
             PiTRACE("@" HEX32, d);
          }
          break;
 
          case External:
          {
-            int32_t d1 = GetDisplacement(pPC);
-            int32_t d2 = GetDisplacement(pPC);
+            int32_t d1 = GetDisplacement(&This->CurrentAddress);
+            int32_t d2 = GetDisplacement(&This->CurrentAddress);
             PiTRACE("EXT(" HEX32 ")+" HEX32, d1, d2);
          }
          break;
@@ -225,33 +261,33 @@ void GetOperandText(uint32_t Start, uint32_t* pPC, RegLKU Pattern, uint32_t c)
 
          case FpRelative:
          {
-            int32_t d = GetDisplacement(pPC);
+            int32_t d = GetDisplacement(&This->CurrentAddress);
             PiTRACE("%" PRId32 "(FP)", d);
          }
          break;
 
          case SpRelative:
          {
-            int32_t d = GetDisplacement(pPC);
+            int32_t d = GetDisplacement(&This->CurrentAddress);
             PiTRACE("%" PRId32 "(SP)", d);
          }
          break;
 
          case SbRelative:
          {
-            int32_t d = GetDisplacement(pPC);
+            int32_t d = GetDisplacement(&This->CurrentAddress);
             PiTRACE("%" PRId32 "(SB)", d);
          }
          break;
 
          case PcRelative:
          {
-            int32_t d = GetDisplacement(pPC);
+            int32_t d = GetDisplacement(&This->CurrentAddress);
 #if 1
             PiTRACE("* + %" PRId32, d);
             
 #else            
-            PiTRACE("&06%" PRIX32 "[PC]", Start + d);
+            PiTRACE("&06%" PRIX32 "[PC]", This->StartAddress + d);
 #endif
          }
          break;
@@ -264,7 +300,7 @@ void GetOperandText(uint32_t Start, uint32_t* pPC, RegLKU Pattern, uint32_t c)
             const char SizeLookup[] = "BWDQ";
             RegLKU NewPattern;
             NewPattern.Whole = Pattern.Whole >> 11;
-            GetOperandText(Start, pPC, NewPattern, c);   // Recurse
+            GetOperandText(This, NewPattern, Index);   // Recurse
             PiTRACE("[R%" PRId16 ":%c]", ((Pattern.Whole >> 8) & 3), SizeLookup[Pattern.Whole & 3]);
          }
          break;
@@ -272,24 +308,24 @@ void GetOperandText(uint32_t Start, uint32_t* pPC, RegLKU Pattern, uint32_t c)
    }
 }
 
-void RegLookUp(uint32_t Start, uint32_t* pPC)
+void RegLookUp(DecodeData* This)
 {
    // printf("RegLookUp(%06" PRIX32 ", %06" PRIX32 ")\n", pc, (*pPC));
    uint32_t Index;
 
    for (Index = 0; Index < 2; Index++)
    {
-      if (Regs[Index].Whole < 0xFFFF)
+      if (This->Regs[Index].Whole < 0xFFFF)
       {
          if (Index == 1)
          {
-            if (Regs[0].Whole < 0xFFFF)
+            if (This->Regs[0].Whole < 0xFFFF)
             {
                PiTRACE(",");
             }
          }
 
-         GetOperandText(Start, pPC, Regs[Index], Index);
+         GetOperandText(This, This->Regs[Index], Index);
       }
    }
 }
@@ -326,7 +362,7 @@ void ShowRegs(uint8_t Pattern, uint8_t Reverse)
 }
 
 const char PostFixLk[] = "BWTD";
-const char PostFltLk[] = "123F5678";
+const char PostFltLk[] = "123F567L";
 const char EightSpaces[] = "        ";
 
 void AddInstructionText(uint32_t Function, uint32_t opcode, uint32_t OperandSize)
@@ -369,7 +405,7 @@ void AddInstructionText(uint32_t Function, uint32_t opcode, uint32_t OperandSize
 
          if (Format >= 9)
          {
-            sprintf(Str + strlen(Str), "%c", PostFltLk[OperandSize & 3]);                 // Offset by 1 to loose the 'B'
+            sprintf(Str + strlen(Str), "%c", PostFltLk[OperandSize & 7]);                 // Offset by 1 to loose the 'B'
          }
          else
          {
@@ -438,7 +474,7 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
          {
             case MOVS:
             case WAIT:                                             // Wait for interrupt then continue execution
-            case DIA:                                              // Wait for interrupt and in theory never resume execution (stack manipulation would get round this)
+            case DIA:                                              // Wait for interrupt and in theory never resume execution (stack manipulation would get round This)
             case CMPS:
             case SKPS:
             {
@@ -463,7 +499,7 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
       PiTRACE("&%06" PRIX32 " ", StartPc);
       PiTRACE("[%08" PRIX32 "] ", opcode);
       uint32_t Format = Function >> 4;
-      PiTRACE("F%01" PRIu32 " ", Format);
+      PiTRACE("F%02" PRIu32 " ", Format);
       //AddASCII(opcode, Format);
 
       if (Function < InstructionCount)
@@ -496,7 +532,17 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
             break;
          }
 
-         RegLookUp(StartPc, pPC);
+         DecodeData This;
+         This.StartAddress = StartPc;
+         This.Function = Function;
+         This.Info.Whole = OpFlags[Function];
+         This.Info.Op[0].Size = FredSize.Op[0];
+         This.Info.Op[1].Size = FredSize.Op[1];
+         This.CurrentAddress = *pPC;
+         This.OpCode = opcode;
+         This.Regs[0] = Regs[0];
+         This.Regs[1] = Regs[1];
+         RegLookUp(&This);
 
          if ((Function <= BN) || (Function == BSR))
          {

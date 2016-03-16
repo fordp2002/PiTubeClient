@@ -1,3 +1,10 @@
+#ifdef _MSC_VER
+#  define PACKED_STRUCT(name) \
+    __pragma(pack(push, 1)) struct name __pragma(pack(pop))
+#elif defined(__GNUC__)
+#  define PACKED_STRUCT(name) struct __attribute__((packed)) name
+#endif
+
 #define CASE2(in) case (in): case ((in) | 0x80)
 #define CASE4(in) case (in): case ((in) | 0x40): case ((in) | 0x80): case ((in) | 0xC0)
 
@@ -173,24 +180,132 @@ enum Functions
 // See Table 4-1 page 4-5 in the manual
 enum OperandFlags
 {
-   not_used          = 0,   
-   read              = 1,
-   write             = 2,
-   rmw               = 3,
-   addr              = 5,
-   Regaddr           = 7,
-   FloatingPoint     = BIT(7)
+   not_used          = 0 * 256,   
+   read              = 1 * 256,
+   write             = 2 * 256,
+   rmw               = 3 * 256,
+   addr              = 5 * 256,
+   Regaddr           = 7 * 256,
+   FP                = BIT(15)
 };
 
 //#define OP(o1, o2) ((o2) << 8 | (o1))
 
+#if 0
 typedef struct
 {
-   uint8_t Flags;
+   unsigned Size : 8;
+   unsigned Class : 7;
+   unsigned Float : 1;
+} OpDetail;
+#else
+typedef struct
+{
    uint8_t Size;
-} SingleOperand;
+   uint8_t  Class;
+} OpDetail;
+#endif
 
 typedef union
 {
-   SingleOperand Op[2];
-} OperandInformation;
+   OpDetail Op[2];
+   uint32_t Whole;
+} OperandPair;
+
+typedef struct
+{
+   uint32_t       StartAddress;
+   uint32_t       Function;
+   uint32_t       CurrentAddress;
+   uint32_t       OpCode;
+   RegLKU         Regs[2];
+   OperandPair    Info;
+} DecodeData;
+
+typedef union
+{
+   double      f64;
+   uint64_t    u64;
+   int64_t     s64;
+} Temp64Type;
+
+typedef union
+{
+   float       f32;
+   uint32_t    u32;
+   int32_t     s32;
+} Temp32Type;
+
+typedef union
+{
+   uint32_t	u32;
+   int32_t s32;
+
+   struct
+   {
+      uint8_t DoNotUse_u8_3;
+      uint8_t DoNotUse_u8_2;
+      uint8_t DoNotUse_u8_1;
+      uint8_t u8;
+   };
+
+   struct
+   {
+      int8_t DoNotUse_s8_3;
+      int8_t DoNotUse_s8_2;
+      int8_t DoNotUse_s8_1;
+      int8_t s8;
+   };
+
+   struct
+   {
+      uint16_t DoNotUse_u16_1;
+      uint16_t u16;
+   };
+
+   struct
+   {
+      int16_t DoNotUse_s16_1;
+      int16_t s16;
+   };
+} MultiReg;
+
+typedef union
+{
+   uint64_t u64;
+   int64_t  s64;
+
+   uint32_t	u32;
+   int32_t s32;
+
+   struct
+   {
+      uint8_t DoNotUse_u8_3;
+      uint8_t DoNotUse_u8_2;
+      uint8_t DoNotUse_u8_1;
+      uint8_t u8;
+   };
+
+   struct
+   {
+      int8_t DoNotUse_s8_3;
+      int8_t DoNotUse_s8_2;
+      int8_t DoNotUse_s8_1;
+      int8_t s8;
+   };
+
+   struct
+   {
+      uint16_t DoNotUse_u16_1;
+      uint16_t u16;
+   };
+
+   struct
+   {
+      int16_t DoNotUse_s16_1;
+      int16_t s16;
+   };
+} MultiReg64;
+
+
+extern const uint32_t OpFlags[InstructionCount];

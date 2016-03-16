@@ -238,20 +238,6 @@ typedef union
 
 typedef union
 {
-   double      f64;
-   uint64_t    u64;
-   int64_t     s64;
-} Temp64Type;
-  
-typedef union
-{
-   float       f32;
-   uint32_t    u32;
-   int32_t     s32;
-} Temp32Type;
-
-typedef union
-{
    struct
    {
       uint32_t UPSR;
