@@ -363,7 +363,7 @@ void ShowRegs(uint8_t Pattern, uint8_t Reverse)
 
 const char PostFixLk[] = "BWTD????";
 const char PostFltLk[] = "123F567L";
-const char EightSpaces[] = "        ";
+const char TenSpaces[] = "          ";
 
 char GetText(OpDetail Info)
 {
@@ -451,9 +451,9 @@ void AddInstructionText(DecodeData* This)
       }
 
       size_t Len = strlen(Str);
-      if (Len < (sizeof(EightSpaces) - 1))
+      if (Len < (sizeof(TenSpaces) - 1))
       {
-         PiTRACE("%s%s", Str, &EightSpaces[Len]);
+         PiTRACE("%s%s", Str, &TenSpaces[Len]);
       }
    }
 }
