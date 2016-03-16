@@ -108,3 +108,329 @@ void BreakPoint(uint32_t pc, uint32_t opcode)
 #endif
 #endif
 }
+
+#if 1
+#define OP(o1, o2) ((o2) << 8 | (o1))
+
+uint16_t OpFlags[InstructionCount] =
+{
+   // Format 0 Branches
+   OP(not_used, not_used),      
+   OP(not_used, not_used),          
+   OP(not_used, not_used),          
+   OP(not_used, not_used),          
+   
+   OP(not_used, not_used),          
+   OP(not_used, not_used),          
+   OP(not_used, not_used),          
+   OP(not_used, not_used),          
+
+   OP(not_used, not_used),          
+   OP(not_used, not_used),          
+   OP(not_used, not_used),          
+   OP(not_used, not_used),          
+
+   OP(not_used, not_used),          
+   OP(not_used, not_used),          
+   OP(not_used, not_used),          
+   OP(not_used, not_used),          
+
+   // Format 1 Special Instructions
+   OP(not_used, not_used),   
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   // Format 2  
+   OP(not_used, not_used),    // ADDQ    
+   OP(not_used, not_used),    // CMPQ
+   OP(not_used, not_used),    // SPR
+   OP(not_used, not_used),    // Scond
+
+   OP(not_used, not_used),    // ACB
+   OP(not_used, not_used),    // LPR
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   // Format 3  
+   OP(not_used, not_used),    // CXPD    
+   OP(not_used, not_used),
+   OP(not_used, not_used),    // BICPSR
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),    // JUMP
+   OP(not_used, not_used),
+   OP(not_used, not_used),    // BIPSR
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),    // ADJSP
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),    // JSR
+   OP(not_used, not_used),
+   OP(not_used, not_used),    // CASE
+   OP(not_used, not_used),
+
+   // Format 4
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   // Format 5
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   // Format 6
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   // Format 7
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   // Format 8
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+
+   // Format 9
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   // Format 10
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   // Format 11
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   // Format 12
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   // Format 13
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   // Format 14
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+   OP(not_used, not_used),
+
+   // TRAP
+   OP(not_used, not_used)
+};
+#endif

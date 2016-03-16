@@ -173,19 +173,16 @@ enum Functions
 // See Table 4-1 page 4-5 in the manual
 enum OperandFlags
 {
-   Force8Bit         = 0,
-   Force16Bit        = 1,
-   Force32Bit        = 2,
-   Force64Bit        = 3,
-   SizeVaries        = 4,
-
-   read              = BIT(3),
-   write             = BIT(4),
-   rmw               = (read | write),
-   addr              = BIT(5),
-   Regaddr           = BIT(6),
+   not_used          = 0,   
+   read              = 1,
+   write             = 2,
+   rmw               = 3,
+   addr              = 5,
+   Regaddr           = 7,
    FloatingPoint     = BIT(7)
 };
+
+//#define OP(o1, o2) ((o2) << 8 | (o1))
 
 typedef struct
 {
