@@ -184,7 +184,7 @@ void GetOperandText(DecodeData* This, RegLKU Pattern, uint32_t Index)
    }
    else if (Pattern.OpType < 16)
    {
-      int32_t d = GetDisplacement(&This->CurrentAddress);
+      int32_t d = GetDisplacement(This);
       PiTRACE("%0" PRId32 "(R%u)", d, (Pattern.Whole & 7));
    }
    else
@@ -193,24 +193,24 @@ void GetOperandText(DecodeData* This, RegLKU Pattern, uint32_t Index)
       {
          case FrameRelative:
          {
-            int32_t d1 = GetDisplacement(&This->CurrentAddress);
-            int32_t d2 = GetDisplacement(&This->CurrentAddress);
+            int32_t d1 = GetDisplacement(This);
+            int32_t d2 = GetDisplacement(This);
             PiTRACE("%" PRId32 "(%" PRId32 "(FP))", d2, d1);
          }
          break;
 
          case StackRelative:
          {
-            int32_t d1 = GetDisplacement(&This->CurrentAddress);
-            int32_t d2 = GetDisplacement(&This->CurrentAddress);
+            int32_t d1 = GetDisplacement(This);
+            int32_t d2 = GetDisplacement(This);
             PiTRACE("%" PRId32 "(%" PRId32 "(SP))", d2, d1);
          }
          break;
 
          case StaticRelative:
          {
-            int32_t d1 = GetDisplacement(&This->CurrentAddress);
-            int32_t d2 = GetDisplacement(&This->CurrentAddress);
+            int32_t d1 = GetDisplacement(This);
+            int32_t d2 = GetDisplacement(This);
             PiTRACE("%" PRId32 "(%" PRId32 "(SB))", d2 , d1);
          }
          break;
@@ -247,15 +247,15 @@ void GetOperandText(DecodeData* This, RegLKU Pattern, uint32_t Index)
 
          case Absolute:
          {
-            int32_t d = GetDisplacement(&This->CurrentAddress);
+            int32_t d = GetDisplacement(This);
             PiTRACE("@" HEX32, d);
          }
          break;
 
          case External:
          {
-            int32_t d1 = GetDisplacement(&This->CurrentAddress);
-            int32_t d2 = GetDisplacement(&This->CurrentAddress);
+            int32_t d1 = GetDisplacement(This);
+            int32_t d2 = GetDisplacement(This);
             PiTRACE("EXT(" HEX32 ")+" HEX32, d1, d2);
          }
          break;
@@ -268,28 +268,28 @@ void GetOperandText(DecodeData* This, RegLKU Pattern, uint32_t Index)
 
          case FpRelative:
          {
-            int32_t d = GetDisplacement(&This->CurrentAddress);
+            int32_t d = GetDisplacement(This);
             PiTRACE("%" PRId32 "(FP)", d);
          }
          break;
 
          case SpRelative:
          {
-            int32_t d = GetDisplacement(&This->CurrentAddress);
+            int32_t d = GetDisplacement(This);
             PiTRACE("%" PRId32 "(SP)", d);
          }
          break;
 
          case SbRelative:
          {
-            int32_t d = GetDisplacement(&This->CurrentAddress);
+            int32_t d = GetDisplacement(This);
             PiTRACE("%" PRId32 "(SB)", d);
          }
          break;
 
          case PcRelative:
          {
-            int32_t d = GetDisplacement(&This->CurrentAddress);
+            int32_t d = GetDisplacement(This);
 #if 1
             PiTRACE("* + %" PRId32, d);
             
@@ -321,11 +321,13 @@ void RegLookUp(DecodeData* This)
 
    for (Index = 0; Index < 2; Index++)
    {
-      if (This->Info.Op[Index].Size)
+      //if (This->Info.Op[Index].Size)
+      if (This->Regs[Index].Whole < 0xFFFF)
       {
          if (Index == 1)
          {
-            if (This->Info.Op[0].Size)
+            if (This->Regs[Index].Whole < 0xFFFF)
+            //if (This->Info.Op[0].Size)
             {
                PiTRACE(",");
             }
@@ -566,7 +568,7 @@ void ShowInstruction(DecodeData* This)
 
          if ((This->Function <= BN) || (This->Function == BSR))
          {
-            int32_t d = GetDisplacement(&This->CurrentAddress);
+            int32_t d = GetDisplacement(This);
             PiTRACE("&%06"PRIX32" ", This->StartAddress + d);
          }
          else
@@ -597,7 +599,7 @@ void ShowInstruction(DecodeData* This)
             case ENTER:
             {
                ShowRegs(Consume_x8(This), 0);    //Access directly we do not want tube reads!
-               int32_t d = GetDisplacement(&This->CurrentAddress);
+               int32_t d = GetDisplacement(This);
                PiTRACE(" " HEX32 "", d);
             }
             break;
@@ -606,14 +608,14 @@ void ShowInstruction(DecodeData* This)
             case CXP:
             case RXP:
             {
-               int32_t d = GetDisplacement(&This->CurrentAddress);
+               int32_t d = GetDisplacement(This);
                PiTRACE(" " HEX32 "", d);
             }
             break;
 
             case ACB:
             {
-               int32_t d = GetDisplacement(&This->CurrentAddress);
+               int32_t d = GetDisplacement(This);
                PiTRACE("PC x+'%" PRId32 "", d);
             }
             break;
@@ -621,7 +623,7 @@ void ShowInstruction(DecodeData* This)
             case MOVM:
             case CMPM:
             {
-               int32_t d = GetDisplacement(&This->CurrentAddress);
+               int32_t d = GetDisplacement(This);
                PiTRACE(",%" PRId32, (d / This->Info.Op[1].Size + 1));
             }
             break;
@@ -629,7 +631,7 @@ void ShowInstruction(DecodeData* This)
             case EXT:
             case INS:
             {
-               int32_t d = GetDisplacement(&This->CurrentAddress);
+               int32_t d = GetDisplacement(This);
                PiTRACE(",%" PRId32, d);
             }
             break;

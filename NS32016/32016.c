@@ -148,13 +148,13 @@ uint32_t PopArbitary(uint32_t Size)
    return Result;
 }
 
-int32_t GetDisplacement(uint32_t* pPC)
+int32_t GetDisplacement(DecodeData* This)
 {
    // Displacements are in Little Endian and need to be sign extended
    int32_t Value;
 
    MultiReg Disp;
-   Disp.u32 = SWAP32(read_x32(*pPC));
+   Disp.u32 = SWAP32(read_x32(This->CurrentAddress));
 
    switch (Disp.u32 >> 29)
       // Look at the top 3 bits
@@ -163,7 +163,7 @@ int32_t GetDisplacement(uint32_t* pPC)
       case 1:
       {
          Value = Disp.u8;
-         (*pPC) += sizeof(int8_t);
+         This->CurrentAddress += sizeof(int8_t);
       }
       break;
 
@@ -171,28 +171,28 @@ int32_t GetDisplacement(uint32_t* pPC)
       case 3:
       {
          Value = (Disp.u8 | 0xFFFFFF80);
-         (*pPC) += sizeof(int8_t);
+         This->CurrentAddress += sizeof(int8_t);
       }
       break;
 
       case 4: // 14 Bit Positive
       {
          Value = (Disp.u16 & 0x3FFF);
-         (*pPC) += sizeof(int16_t);
+         This->CurrentAddress += sizeof(int16_t);
       }
       break;
 
       case 5: // 14 Bit Negative
       {
          Value = (Disp.u16 | 0xFFFFC000);
-         (*pPC) += sizeof(int16_t);
+         This->CurrentAddress += sizeof(int16_t);
       }
       break;
 
       case 6: // 30 Bit Positive
       {
          Value = (Disp.u32 & 0x3FFFFFFF);
-         (*pPC) += sizeof(int32_t);
+         This->CurrentAddress += sizeof(int32_t);
       }
       break;
 
@@ -200,7 +200,7 @@ int32_t GetDisplacement(uint32_t* pPC)
       default: // Stop it moaning about Value not being set ;)
       {
          Value = Disp.u32;
-         (*pPC) += sizeof(int32_t);
+         This->CurrentAddress += sizeof(int32_t);
       }
       break;
    }
@@ -395,7 +395,7 @@ static void GetGenPhase2(RegLKU gen, int c)
 
       if (gen.OpType <= R7_Offset)
       {
-         genaddr[c] = r[gen.Whole & 7] + GetDisplacement(&Data.CurrentAddress);
+         genaddr[c] = r[gen.Whole & 7] + GetDisplacement(&Data);
          return;
       }
 
@@ -425,35 +425,35 @@ static void GetGenPhase2(RegLKU gen, int c)
       switch (gen.OpType)
       {
          case FrameRelative:
-            temp = GetDisplacement(&Data.CurrentAddress);
-            temp2 = GetDisplacement(&Data.CurrentAddress);
+            temp = GetDisplacement(&Data);
+            temp2 = GetDisplacement(&Data);
             genaddr[c] = read_x32(fp + temp);
             genaddr[c] += temp2;
             break;
 
          case StackRelative:
-            temp = GetDisplacement(&Data.CurrentAddress);
-            temp2 = GetDisplacement(&Data.CurrentAddress);
+            temp = GetDisplacement(&Data);
+            temp2 = GetDisplacement(&Data);
             genaddr[c] = read_x32(GET_SP() + temp);
             genaddr[c] += temp2;
             break;
 
          case StaticRelative:
-            temp = GetDisplacement(&Data.CurrentAddress);
-            temp2 = GetDisplacement(&Data.CurrentAddress);
+            temp = GetDisplacement(&Data);
+            temp2 = GetDisplacement(&Data);
             genaddr[c] = read_x32(sb + temp);
             genaddr[c] += temp2;
             break;
 
          case Absolute:
-            genaddr[c] = GetDisplacement(&Data.CurrentAddress);
+            genaddr[c] = GetDisplacement(&Data);
             break;
 
          case External:
             temp = read_x32(mod + 4);
-            temp += ((int32_t) GetDisplacement(&Data.CurrentAddress)) * 4;
+            temp += ((int32_t) GetDisplacement(&Data)) * 4;
             temp2 = read_x32(temp);
-            genaddr[c] = temp2 + GetDisplacement(&Data.CurrentAddress);
+            genaddr[c] = temp2 + GetDisplacement(&Data);
             break;
 
          case TopOfStack:
@@ -462,19 +462,19 @@ static void GetGenPhase2(RegLKU gen, int c)
             break;
 
          case FpRelative:
-            genaddr[c] = GetDisplacement(&Data.CurrentAddress) + fp;
+            genaddr[c] = GetDisplacement(&Data) + fp;
             break;
 
          case SpRelative:
-            genaddr[c] = GetDisplacement(&Data.CurrentAddress) + GET_SP();
+            genaddr[c] = GetDisplacement(&Data) + GET_SP();
             break;
 
          case SbRelative:
-            genaddr[c] = GetDisplacement(&Data.CurrentAddress) + sb;
+            genaddr[c] = GetDisplacement(&Data) + sb;
             break;
 
          case PcRelative:
-            genaddr[c] = GetDisplacement(&Data.CurrentAddress) + Data.StartAddress;
+            genaddr[c] = GetDisplacement(&Data) + Data.StartAddress;
             break;
 
          default:
@@ -1305,7 +1305,7 @@ void n32016_exec()
 
       if (Function <= RETT)
       {
-         temp = GetDisplacement(&Data.CurrentAddress);
+         temp = GetDisplacement(&Data);
       }
 
       if (TrapFlags)
@@ -1458,7 +1458,7 @@ void n32016_exec()
          {
             int c;
             temp = READ_PC_BYTE();
-            temp2 = GetDisplacement(&Data.CurrentAddress);
+            temp2 = GetDisplacement(&Data);
             pushd(fp);
             fp = GET_SP();
             DEC_SP(temp2);
@@ -1610,7 +1610,7 @@ void n32016_exec()
             NIBBLE_EXTEND(temp2);
             temp = ReadGen(0);
             temp += temp2;
-            temp2 = GetDisplacement(&Data.CurrentAddress);
+            temp2 = GetDisplacement(&Data);
             if (Truncate(temp, OpSize.Op[0]))
                Data.CurrentAddress = Data.StartAddress + temp2;
          }
@@ -2233,8 +2233,8 @@ void n32016_exec()
          {
             uint32_t First    = ReadAddress(0);
             uint32_t Second   = ReadAddress(1);
-            //temp = GetDisplacement(&Data.CurrentAddress) + OpSize.Op[0];                      // disp of 0 means move 1 byte
-            temp = (GetDisplacement(&Data.CurrentAddress) & ~(OpSize.Op[0] - 1))  + OpSize.Op[0];
+            //temp = GetDisplacement(&Data) + OpSize.Op[0];                      // disp of 0 means move 1 byte
+            temp = (GetDisplacement(&Data) & ~(OpSize.Op[0] - 1))  + OpSize.Op[0];
             while (temp)
             {
                temp2 = read_x8(First);
@@ -2254,7 +2254,7 @@ void n32016_exec()
             uint32_t First    = ReadAddress(0);
             uint32_t Second   = ReadAddress(1);
 
-            temp3 = (GetDisplacement(&Data.CurrentAddress) / temp4) + 1;
+            temp3 = (GetDisplacement(&Data) / temp4) + 1;
 
             //PiTRACE("CMP Size = %u Count = %u\n", temp4, temp3);
             while (temp3--)
@@ -2507,7 +2507,7 @@ void n32016_exec()
          {
             uint32_t c;
             int32_t  Offset = r[(opcode >> 11) & 7];
-            uint32_t Length = GetDisplacement(&Data.CurrentAddress);
+            uint32_t Length = GetDisplacement(&Data);
             uint32_t StartBit;
 
             if (Length < 1 || Length > 32)
@@ -2569,7 +2569,7 @@ void n32016_exec()
          {
             uint32_t c;
             int32_t  Offset = r[(opcode >> 11) & 7];
-            uint32_t Length = GetDisplacement(&Data.CurrentAddress);
+            uint32_t Length = GetDisplacement(&Data);
             uint32_t Source = ReadGen(0);
             uint32_t StartBit;
 

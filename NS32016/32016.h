@@ -278,7 +278,7 @@ extern void n32016_exec();
 extern void n32016_close();
 extern void n32016_build_matrix();
 extern void BreakPoint(uint32_t pc, uint32_t opcode);
-extern int32_t GetDisplacement(uint32_t* pPC);
+extern int32_t GetDisplacement(DecodeData* This);
 
 extern ProcessorRegisters PR;
 extern uint32_t r[8];
