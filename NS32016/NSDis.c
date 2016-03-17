@@ -174,11 +174,10 @@ int64_t GetImmediate(DecodeData* This, uint32_t Index)
 }
 
 const char SizeLookup[] = "BWDQ";
+const char RegLetter[]  = "RDF*****";
 
 void GetOperandText(DecodeData* This, RegLKU Pattern, uint32_t Index)
 {
-   const char RegLetter[] = "RDF*****";
-
    if (Pattern.OpType < 8)
    {
       PiTRACE("%c%0" PRId32, RegLetter[Pattern.RegType], Pattern.OpType);
@@ -664,9 +663,9 @@ void ShowInstruction(DecodeData* This)
 #ifdef TEST_SUITE
 
 #if TEST_SUITE == 0
-         if ((This->CurrentAddress == 0x1CA9) || (This->CurrentAddress == 0x1CB2))
+         if ((This->StartAddress == 0x1CA9) || (This->StartAddress == 0x1CB2))
 #else
-         if ((This->CurrentAddress == 0x1CA8) || (This->CurrentAddress == 0x1CBD))
+         if ((This->StartAddress == 0x1CA8) || (This->StartAddress == 0x1CBD))
 #endif
          {
 
