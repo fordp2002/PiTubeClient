@@ -134,7 +134,6 @@ const char InstuctionText[InstructionCount][8] =
    "TRAP"
 };
 
-
 int64_t GetImmediate(DecodeData* This, uint32_t Index)
 {
    int64_t Result = 0;
@@ -173,6 +172,8 @@ int64_t GetImmediate(DecodeData* This, uint32_t Index)
    This->CurrentAddress += Size;
    return Result;
 }
+
+const char SizeLookup[] = "BWDQ";
 
 void GetOperandText(DecodeData* This, RegLKU Pattern, uint32_t Index)
 {
@@ -304,7 +305,6 @@ void GetOperandText(DecodeData* This, RegLKU Pattern, uint32_t Index)
          case EaPlus4Rn:
          case EaPlus8Rn:
          {
-            const char SizeLookup[] = "BWDQ";
             RegLKU NewPattern;
             NewPattern.Whole = Pattern.Whole >> 11;
             GetOperandText(This, NewPattern, Index);   // Recurse
@@ -322,11 +322,11 @@ void RegLookUp(DecodeData* This)
 
    for (Index = 0; Index < 2; Index++)
    {
-      if (This->Regs[Index].Whole < 0xFFFF)
+      if (This->Info.Op[Index].Size)
       {
          if (Index == 1)
          {
-            if (This->Regs[0].Whole < 0xFFFF)
+            if (This->Info.Op[0].Size)
             {
                PiTRACE(",");
             }
@@ -380,13 +380,8 @@ char GetText(OpDetail Info)
    {
       if (Size < 8)
       {
-         if (Info.Class & 0x80)
-         {
-            return PostFltLk[Size];
-         }
+         return (Info.Class & 0x80) ? PostFltLk[Size] : PostFixLk[Size];
       }
-
-      return PostFixLk[Size];
    }
 
    return '?';
@@ -396,7 +391,6 @@ void AddInstructionText(DecodeData* This)
 {
    if (This->Function < InstructionCount)
    {
-      uint32_t OperandSize = This->Info.Op[1].Size;
       char Str[80];
 
       if (This->Function == Scond)
@@ -417,26 +411,30 @@ void AddInstructionText(DecodeData* This)
             {
                sprintf(Str + strlen(Str), "%c%c", GetText(This->Info.Op[0]), GetText(This->Info.Op[1]));
             }
-            // Fall Through
+            break;
 
             case SFSR:
             case LFSR:
             {
-               OperandSize = 0;
+               // Nothing here!
             }
             break;
-         }
 
-         if ((This->OpCode & 0x80FF) == 0x800E)
-         {
-            sprintf(Str + strlen(Str), "T");                 // Offset by 1 to loose the 'B'
-         }
-         else
-         {
-            if (OperandSize)
+            default:
             {
-               sprintf(Str + strlen(Str), "%c", GetText(This->Info.Op[0]));                 // Offset by 1 to loose the 'B'
+               if ((This->OpCode & 0x80FF) == 0x800E)
+               {
+                  sprintf(Str + strlen(Str), "T");
+               }
+               else
+               {
+                  if (This->Info.Op[1].Size)
+                  {
+                     sprintf(Str + strlen(Str), "%c", GetText(This->Info.Op[0]));
+                  }
+               }
             }
+            break;
          }
 
          switch (This->Function)
@@ -465,20 +463,22 @@ void AddInstructionText(DecodeData* This)
    }
 }
 
-void AddASCII(opcode, Format)
+void AddASCII(DecodeData* This)
 {
+   uint32_t Format = This->Function >> 4;
+
    if (Format < sizeof(FormatSizes))
    {
       uint32_t Len = FormatSizes[Format];
       uint32_t Count;
+      uint32_t OpCode = This->OpCode;
 
-      for (Count = 0; Count < 4; Count++)
+      for (Count = 0; Count < 4; Count++, OpCode >>= 8)
       {
          if (Count < Len)
          { 
-            uint8_t Data = opcode & 0xFF;
+            uint8_t Data = OpCode & 0xFF;
             PiTRACE("%c", (Data < 0x20) ? '.' : Data);
-            opcode >>= 8;
          }
          else
          {
@@ -486,6 +486,12 @@ void AddASCII(opcode, Format)
          }
       }
    }
+}
+
+
+uint8_t Consume_x8(DecodeData* This)
+{
+   return read_x8(This->CurrentAddress++);
 }
 
 #ifdef SHOW_INSTRUCTIONS
@@ -527,7 +533,7 @@ void ShowInstruction(DecodeData* This)
       PiTRACE("[%08" PRIX32 "] ", This->OpCode);
       uint32_t Format = This->Function >> 4;
       PiTRACE("F%02" PRIu32 " ", Format);
-      //AddASCII(opcode, Format);
+      //AddASCII(This);
 
       if (This->Function < InstructionCount)
       {
@@ -559,42 +565,39 @@ void ShowInstruction(DecodeData* This)
             break;
          }
 
-
-         RegLookUp(This);
-
          if ((This->Function <= BN) || (This->Function == BSR))
          {
             int32_t d = GetDisplacement(&This->CurrentAddress);
             PiTRACE("&%06"PRIX32" ", This->StartAddress + d);
+         }
+         else
+         {
+            RegLookUp(This);
          }
 
          switch (This->Function)
          {
             case SAVE:
             {
-               ShowRegs(read_x8(This->CurrentAddress), 0);    //Access directly we do not want tube reads!
-               This->CurrentAddress++;
+               ShowRegs(Consume_x8(This), 0);    //Access directly we do not want tube reads!
             }
             break;
 
             case RESTORE:
             {
-               ShowRegs(read_x8(This->CurrentAddress), 1);    //Access directly we do not want tube reads!
-               This->CurrentAddress++;
+               ShowRegs(Consume_x8(This), 1);    //Access directly we do not want tube reads!
             }
             break;
 
             case EXIT:
             {
-               ShowRegs(read_x8(This->CurrentAddress), 1);    //Access directly we do not want tube reads!
-               This->CurrentAddress++;
+               ShowRegs(Consume_x8(This), 1);    //Access directly we do not want tube reads!
             }
             break;
   
             case ENTER:
             {
-               ShowRegs(read_x8(This->CurrentAddress), 0);    //Access directly we do not want tube reads!
-               This->CurrentAddress;
+               ShowRegs(Consume_x8(This), 0);    //Access directly we do not want tube reads!
                int32_t d = GetDisplacement(&This->CurrentAddress);
                PiTRACE(" " HEX32 "", d);
             }
@@ -649,8 +652,7 @@ void ShowInstruction(DecodeData* This)
             case INSS:
             case EXTS:
             {
-               uint8_t Value = read_x8(This->CurrentAddress);
-               This->CurrentAddress++;
+               uint8_t Value = Consume_x8(This);
                PiTRACE(",%" PRIu32 ",%" PRIu32,  Value >> 5, ((Value & 0x1F) + 1));
             }
             break;
@@ -726,8 +728,7 @@ static void getgen(DecodeData* This, int gen, int c)
 
    if (gen >= EaPlusRn)
    {
-      This->Regs[c].Whole |= read_x8(This->CurrentAddress) << 8;
-      This->CurrentAddress++;
+      This->Regs[c].UpperByte = Consume_x8(This);
 
       if ((This->Regs[c].Whole & 0xF800) == (Immediate << 11))
       {
@@ -759,16 +760,16 @@ void SetSize(DecodeData* This, uint32_t Size)
 
 void Decode(DecodeData* This)
 {
-   This->StartAddress    = This->CurrentAddress;
-   uint32_t   opcode    =
-   This->OpCode          = read_x32(This->StartAddress);
-   This->Function        = FunctionLookup[This->OpCode & 0xFF];
-   This->Info.Whole      = OpFlags[This->Function];
-   uint32_t Format      = This->Function >> 4;
+   This->StartAddress      = This->CurrentAddress;
+   uint32_t OpCode         =
+   This->OpCode            = read_x32(This->StartAddress);
+   This->Function          = FunctionLookup[This->OpCode & 0xFF];
+   This->Info.Whole        = OpFlags[This->Function];
+   uint32_t Format         = This->Function >> 4;
 
    if (Format < (FormatCount + 1))
    {
-      This->StartAddress += FormatSizes[Format];                                        // Add the basic number of bytes for a particular instruction
+      This->CurrentAddress += FormatSizes[Format];                                        // Add the basic number of bytes for a particular instruction
    }
 
    switch (Format)
@@ -782,33 +783,33 @@ void Decode(DecodeData* This)
 
       case Format2:
       {
-         SetSize(This, opcode);
-         getgen(This, opcode >> 11, 0);
+         SetSize(This, OpCode);
+         getgen(This, OpCode >> 11, 0);
       }
       break;
 
       case Format3:
       {
-         This->Function += ((opcode >> 7) & 0x0F);
-         SetSize(This, opcode);
-         getgen(This, opcode >> 11, 0);
+         This->Function += ((OpCode >> 7) & 0x0F);
+         SetSize(This, OpCode);
+         getgen(This, OpCode >> 11, 0);
       }
       break;
 
       case Format4:
       {
-         SetSize(This, opcode);
-         getgen(This, opcode >> 11, 0);
-         getgen(This, opcode >> 6, 1);
+         SetSize(This, OpCode);
+         getgen(This, OpCode >> 11, 0);
+         getgen(This, OpCode >> 6, 1);
       }
       break;
 
       case Format5:
       {
-         This->Function += ((opcode >> 10) & 0x0F);
-         SetSize(This, opcode >> 8);
+         This->Function += ((OpCode >> 10) & 0x0F);
+         SetSize(This, OpCode >> 8);
 
-         if (opcode & BIT(Translation))
+         if (OpCode & BIT(Translation))
          {
             This->Info.Op[0].Size = sz8;
             This->Info.Op[1].Size = sz8;
@@ -818,8 +819,8 @@ void Decode(DecodeData* This)
 
       case Format6:
       {
-         This->Function += ((opcode >> 10) & 0x0F);
-         SetSize(This, opcode >> 8);
+         This->Function += ((OpCode >> 10) & 0x0F);
+         SetSize(This, OpCode >> 8);
 
          // Ordering important here, as getgen uses Operand Size
          switch (This->Function)
@@ -833,27 +834,27 @@ void Decode(DecodeData* This)
             break;
          }
 
-         getgen(This, opcode >> 19, 0);
-         getgen(This, opcode >> 14, 1);
+         getgen(This, OpCode >> 19, 0);
+         getgen(This, OpCode >> 14, 1);
       }
       break;
 
       case Format7:
       {
-         This->Function += ((opcode >> 10) & 0x0F);
-         SetSize(This, opcode >> 8);
-         getgen(This, opcode >> 19, 0);
-         getgen(This, opcode >> 14, 1);
+         This->Function += ((OpCode >> 10) & 0x0F);
+         SetSize(This, OpCode >> 8);
+         getgen(This, OpCode >> 19, 0);
+         getgen(This, OpCode >> 14, 1);
       }
       break;
 
       case Format8:
       {
-         if (opcode & 0x400)
+         if (OpCode & 0x400)
          {
-            if (opcode & 0x80)
+            if (OpCode & 0x80)
             {
-               switch (opcode & 0x3CC0)
+               switch (OpCode & 0x3CC0)
                {
                   case 0x0C80:
                   {
@@ -876,15 +877,15 @@ void Decode(DecodeData* This)
             }
             else
             {
-               This->Function = (opcode & 0x40) ? FFS : INDEX;
+               This->Function = (OpCode & 0x40) ? FFS : INDEX;
             }
          }
          else
          {
-            This->Function += ((opcode >> 6) & 3);
+            This->Function += ((OpCode >> 6) & 3);
          }
 
-         SetSize(This, opcode >> 8);
+         SetSize(This, OpCode >> 8);
 
          if (This->Function == CVTP)
          {
@@ -892,26 +893,26 @@ void Decode(DecodeData* This)
             This->Info.Op[1].Size = sz32;
          }
 
-         getgen(This, opcode >> 19, 0);
-         getgen(This, opcode >> 14, 1);
+         getgen(This, OpCode >> 19, 0);
+         getgen(This, OpCode >> 14, 1);
       }
       break;
 
       case Format9:
       {
-         This->Function += ((opcode >> 11) & 0x07);
+         This->Function += ((OpCode >> 11) & 0x07);
       }
       break;
 
       case Format11:
       {
-         This->Function += ((opcode >> 10) & 0x0F);
+         This->Function += ((OpCode >> 10) & 0x0F);
       }
       break;
 
       case Format14:
       {
-         This->Function += ((opcode >> 10) & 0x0F);
+         This->Function += ((OpCode >> 10) & 0x0F);
       }
       break;
 
@@ -930,20 +931,21 @@ void Decode(DecodeData* This)
 
 void DisassembleUsingITrace(uint32_t Location, uint32_t End)
 {
+   DecodeData This;
    uint32_t Index;
-   uint32_t Address = Location;
+   This.CurrentAddress = Location;
 
    PiTRACE("DisassembleUsingITrace(%06" PRIX32 ", %06" PRIX32 ")\n", Location, End);
    for (Index = Location; Index < End; Index++)
    {
       if (IP[Index])
       {
-         if (Address < Index)
+         if (This.CurrentAddress < Index)
          {
             uint32_t Temp;
             uint32_t Break = 0;
 
-            for (Temp = Address; Temp < Index; Temp++, Break++)
+            for (Temp = This.CurrentAddress; Temp < Index; Temp++, Break++)
             {
                if ((Break % BYTE_COUNT) == 0)
                {
@@ -958,10 +960,10 @@ void DisassembleUsingITrace(uint32_t Location, uint32_t End)
          }
 
          PiTRACE("#%06" PRId32 ": ", IP[Index]);
-         Address = Index;
-         Decode(&Address);
-         ShowTraps();
-         CLEAR_TRAP();
+         This.CurrentAddress = Index;
+         Decode(&This);
+         // ShowTraps();
+         // CLEAR_TRAP();
       }
    }
 }
