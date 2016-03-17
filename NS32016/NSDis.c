@@ -1,3 +1,11 @@
+// B-em v2.2 by Tom Walker
+//32016 parasite processor emulation (not working yet)
+
+// NS 32XXX Live Trace / Disassembler
+// (c) By Simon R. Ellwood
+
+// This module is all about generating text
+
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -41,17 +49,17 @@ const char LPRLookUp[16][20] =
 uint32_t IP[MEG16];
 #endif
 
-void AddStringFlags(uint32_t opcode)
+void AddStringFlags(DecodeData* This)
 {
-   if (opcode & (BIT(Backwards) | BIT(UntilMatch) | BIT(WhileMatch)))
+   if (This->OpCode & (BIT(Backwards) | BIT(UntilMatch) | BIT(WhileMatch)))
    {
       PiTRACE("[");
-      if (opcode & BIT(Backwards))
+      if (This->OpCode & BIT(Backwards))
       {
          PiTRACE("B");
       }
 
-      uint32_t Options = (opcode >> 17) & 3;
+      uint32_t Options = (This->OpCode >> 17) & 3;
       if (Options == 1) // While match
       {
          PiTRACE("W");
@@ -129,27 +137,37 @@ const char InstuctionText[InstructionCount][8] =
 
 int64_t GetImmediate(DecodeData* This, uint32_t Index)
 {
-   int64_t Result;
+   int64_t Result = 0;
    MultiReg Temp;
    uint32_t Size = This->Info.Op[Index].Size;
 
    Temp.u32 = SWAP32(read_x32(This->CurrentAddress));
 
-   if (Size == sz8)
+   switch (Size)
    {
-      Result = Temp.u8;
-   }
-   else if (Size == sz16)
-   {
-      Result = Temp.u16;
-   }
-   else if (Size == sz32)
-   {
-      Result = Temp.u32;
-   }
-   else
-   {
-      Result = (((int64_t) Temp.u32) << 32) | SWAP32(read_x32(This->CurrentAddress + 4));
+      case sz8:
+      {
+         Result = Temp.u8;
+      }
+      break;
+
+      case sz16:
+      {
+         Result = Temp.u16;
+      }
+      break;
+
+      case sz32:
+      {
+         Result = Temp.u32;
+      }
+      break;
+   
+      case sz64:
+      {
+         Result = (((int64_t) Temp.u32) << 32) | SWAP32(read_x32(This->CurrentAddress + 4));
+      }
+      break;
    }
 
    This->CurrentAddress += Size;
@@ -618,7 +636,7 @@ void ShowInstruction(DecodeData* This)
             case CMPS:
             case SKPS:
             {
-               AddStringFlags(This->OpCode);
+               AddStringFlags(This);
             }
             break;
 

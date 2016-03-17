@@ -254,9 +254,9 @@ typedef union
 
 typedef struct
 {
+   uint32_t       CurrentAddress;               // This is first with a zero offset as it used the most
    uint32_t       StartAddress;
    uint32_t       Function;
-   uint32_t       CurrentAddress;
    uint32_t       OpCode;
    RegLKU         Regs[2];
    OperandPair    Info;

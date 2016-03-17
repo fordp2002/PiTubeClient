@@ -1,3 +1,11 @@
+// B-em v2.2 by Tom Walker
+//32016 parasite processor emulation (not working yet)
+
+// 32106 Decode
+// (c) By Simon R. Ellwood
+
+// Decode is the base module that is common to Soft-Core, Live Trace and Dissassembly
+
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdio.h>
