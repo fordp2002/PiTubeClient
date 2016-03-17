@@ -3,11 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "defs.h"
+#include "Decode.h"
 #include "32016.h"
 #include "Profile.h"
 #include "Trap.h"
-#include "defs.h"
-#include "Decode.h"
 
 uint8_t FunctionLookup[256];
 

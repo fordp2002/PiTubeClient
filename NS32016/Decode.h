@@ -8,6 +8,27 @@
 #define CASE2(in) case (in): case ((in) | 0x80)
 #define CASE4(in) case (in): case ((in) | 0x40): case ((in) | 0x80): case ((in) | 0xC0)
 
+enum Formats
+{
+   Format0,
+   Format1,
+   Format2,
+   Format3,
+   Format4,
+   Format5,
+   Format6,
+   Format7,
+   Format8,
+   Format9,
+   Format10,
+   Format11,
+   Format12,
+   Format13,
+   Format14,
+   FormatCount,
+   FormatBad = 0xFF
+};
+
 uint8_t FunctionLookup[256];
 
 #define F_BASE(in) ((in) << 4)
@@ -211,6 +232,25 @@ typedef union
    OpDetail Op[2];
    uint32_t Whole;
 } OperandPair;
+
+typedef union
+{
+   struct
+   {
+      unsigned OpType : 5;
+      unsigned RegType : 3;
+      unsigned IdxReg : 3;
+      unsigned IdxType : 5;
+   };
+
+   struct
+   {
+      uint8_t LowerByte;
+      uint8_t UpperByte;
+   };
+
+   uint16_t Whole;
+} RegLKU;
 
 typedef struct
 {

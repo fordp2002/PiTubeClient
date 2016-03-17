@@ -3,19 +3,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "defs.h"
+#include "Decode.h"
 #include "32016.h"
 #include "mem32016.h"
 #include "Profile.h"
 #include "Trap.h"
-#include "Decode.h"
+
 
 #define HEX24 "x'%06" PRIX32
 #define HEX32 "x'%" PRIX32
 
 uint32_t OpCount = 0;
-
-OperandSizeType FredSize;
 
 const char LPRLookUp[16][20] = 
 {
@@ -41,17 +41,6 @@ const char LPRLookUp[16][20] =
 uint32_t IP[MEG16];
 #endif
 
-void PostfixLookup(uint8_t Postfix)
-{
-   char PostFixLk[] = "BWTD";
-
-   if (Postfix)
-   {
-      Postfix--;
-      PiTRACE("%c", PostFixLk[Postfix & 3]);
-   }
-}
-
 void AddStringFlags(uint32_t opcode)
 {
    if (opcode & (BIT(Backwards) | BIT(UntilMatch) | BIT(WhileMatch)))
@@ -76,13 +65,13 @@ void AddStringFlags(uint32_t opcode)
    }
 }
 
-void AddCfgFLags(uint32_t opcode)
+void AddCfgFLags(DecodeData* This)
 {
    PiTRACE("[");
-   if (opcode & BIT(15))   PiTRACE("I");
-   if (opcode & BIT(16))   PiTRACE("F");
-   if (opcode & BIT(17))   PiTRACE("M");
-   if (opcode & BIT(18))   PiTRACE("C");
+   if (This->OpCode & BIT(15))   PiTRACE("I");
+   if (This->OpCode & BIT(16))   PiTRACE("F");
+   if (This->OpCode & BIT(17))   PiTRACE("M");
+   if (This->OpCode & BIT(18))   PiTRACE("C");
    PiTRACE("]");
 }
 
@@ -482,15 +471,15 @@ void AddASCII(opcode, Format)
 }
 
 #ifdef SHOW_INSTRUCTIONS
-void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t Function, uint32_t OperandSize)
+void ShowInstruction(DecodeData* This)
 {
    static uint32_t old_pc = 0xFFFFFFFF;
 
-   if (StartPc < (IO_BASE - 64))                     // The code will not work near the IO Space as it will have side effects
+   if (This->StartAddress < (IO_BASE - 64))                     // The code will not work near the IO Space as it will have side effects
    {
-      if (StartPc == old_pc)
+      if (This->StartAddress == old_pc)
       {
-         switch (Function)
+         switch (This->Function)
          {
             case MOVS:
             case WAIT:                                             // Wait for interrupt then continue execution
@@ -504,7 +493,7 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
          }
       }
       
-      old_pc = StartPc;
+      old_pc = This->StartAddress;
          
 #ifdef WIN32
       if (OpCount > 25000)
@@ -516,35 +505,24 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
       //PiTRACE("#%08"PRIu32" ", OpCount);
 #endif
         
-      PiTRACE("&%06" PRIX32 " ", StartPc);
-      PiTRACE("[%08" PRIX32 "] ", opcode);
-      uint32_t Format = Function >> 4;
+      PiTRACE("&%06" PRIX32 " ", This->StartAddress);
+      PiTRACE("[%08" PRIX32 "] ", This->OpCode);
+      uint32_t Format = This->Function >> 4;
       PiTRACE("F%02" PRIu32 " ", Format);
       //AddASCII(opcode, Format);
 
-      if (Function < InstructionCount)
+      if (This->Function < InstructionCount)
       {
-         DecodeData This;
-         This.StartAddress = StartPc;
-         This.Function = Function;
-         This.Info.Whole = OpFlags[Function];
-         This.Info.Op[0].Size = FredSize.Op[0];
-         This.Info.Op[1].Size = FredSize.Op[1];
-         This.CurrentAddress = *pPC;
-         This.OpCode = opcode;
-         This.Regs[0] = Regs[0];
-         This.Regs[1] = Regs[1];
+         AddInstructionText(This);
 
-         AddInstructionText(&This);
-
-         switch (Function)
+         switch (This->Function)
          {
             case ADDQ:
             case CMPQ:
             case ACB:
             case MOVQ:
             {
-               int32_t Value = (opcode >> 7) & 0xF;
+               int32_t Value = (This->OpCode >> 7) & 0xF;
                NIBBLE_EXTEND(Value);
                PiTRACE("%" PRId32 ",", Value);
             }
@@ -553,9 +531,9 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
             case LPR:
             case SPR:
             {
-               int32_t Value = (opcode >> 7) & 0xF;
+               int32_t Value = (This->OpCode >> 7) & 0xF;
                PiTRACE("%s", LPRLookUp[Value]);
-               if (Function == LPR)
+               if (This->Function == LPR)
                {
                   PiTRACE(",");
                }
@@ -564,38 +542,42 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
          }
 
 
-         RegLookUp(&This);
+         RegLookUp(This);
 
-         if ((Function <= BN) || (Function == BSR))
+         if ((This->Function <= BN) || (This->Function == BSR))
          {
-            int32_t d = GetDisplacement(pPC);
-            PiTRACE("&%06"PRIX32" ", StartPc + d);
+            int32_t d = GetDisplacement(&This->CurrentAddress);
+            PiTRACE("&%06"PRIX32" ", This->StartAddress + d);
          }
 
-         switch (Function)
+         switch (This->Function)
          {
             case SAVE:
             {
-               ShowRegs(read_x8((*pPC)++), 0);    //Access directly we do not want tube reads!
+               ShowRegs(read_x8(This->CurrentAddress), 0);    //Access directly we do not want tube reads!
+               This->CurrentAddress++;
             }
             break;
 
             case RESTORE:
             {
-               ShowRegs(read_x8((*pPC)++), 1);    //Access directly we do not want tube reads!
+               ShowRegs(read_x8(This->CurrentAddress), 1);    //Access directly we do not want tube reads!
+               This->CurrentAddress++;
             }
             break;
 
             case EXIT:
             {
-               ShowRegs(read_x8((*pPC)++), 1);    //Access directly we do not want tube reads!
+               ShowRegs(read_x8(This->CurrentAddress), 1);    //Access directly we do not want tube reads!
+               This->CurrentAddress++;
             }
             break;
   
             case ENTER:
             {
-               ShowRegs(read_x8((*pPC)++), 0);    //Access directly we do not want tube reads!
-               int32_t d = GetDisplacement(pPC);
+               ShowRegs(read_x8(This->CurrentAddress), 0);    //Access directly we do not want tube reads!
+               This->CurrentAddress;
+               int32_t d = GetDisplacement(&This->CurrentAddress);
                PiTRACE(" " HEX32 "", d);
             }
             break;
@@ -604,14 +586,14 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
             case CXP:
             case RXP:
             {
-               int32_t d = GetDisplacement(pPC);
+               int32_t d = GetDisplacement(&This->CurrentAddress);
                PiTRACE(" " HEX32 "", d);
             }
             break;
 
             case ACB:
             {
-               int32_t d = GetDisplacement(pPC); 
+               int32_t d = GetDisplacement(&This->CurrentAddress);
                PiTRACE("PC x+'%" PRId32 "", d);
             }
             break;
@@ -619,15 +601,15 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
             case MOVM:
             case CMPM:
             {
-               int32_t d = GetDisplacement(pPC);
-               PiTRACE(",%" PRId32, (d / OperandSize) + 1);
+               int32_t d = GetDisplacement(&This->CurrentAddress);
+               PiTRACE(",%" PRId32, (d / This->Info.Op[1].Size + 1));
             }
             break;
 
             case EXT:
             case INS:
             {
-               int32_t d = GetDisplacement(pPC);
+               int32_t d = GetDisplacement(&This->CurrentAddress);
                PiTRACE(",%" PRId32, d);
             }
             break;
@@ -636,20 +618,21 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
             case CMPS:
             case SKPS:
             {
-               AddStringFlags(opcode);
+               AddStringFlags(This->OpCode);
             }
             break;
 
             case SETCFG:
             {
-               AddCfgFLags(opcode);
+               AddCfgFLags(This);
             }
             break;
 
             case INSS:
             case EXTS:
             {
-               uint8_t Value = read_x8((*pPC)++);
+               uint8_t Value = read_x8(This->CurrentAddress);
+               This->CurrentAddress++;
                PiTRACE(",%" PRIu32 ",%" PRIu32,  Value >> 5, ((Value & 0x1F) + 1));
             }
             break;
@@ -661,9 +644,9 @@ void ShowInstruction(uint32_t StartPc, uint32_t* pPC, uint32_t opcode, uint32_t 
 #ifdef TEST_SUITE
 
 #if TEST_SUITE == 0
-         if ((*pPC == 0x1CA9) || (*pPC == 0x1CB2))
+         if ((This->CurrentAddress == 0x1CA9) || (This->CurrentAddress == 0x1CB2))
 #else
-         if ((*pPC == 0x1CA8) || (*pPC == 0x1CBD))
+         if ((This->CurrentAddress == 0x1CA8) || (This->CurrentAddress == 0x1CBD))
 #endif
          {
 
@@ -718,46 +701,58 @@ void ShowRegisterWrite(RegLKU RegIn, uint32_t Value)
    }
 }
 
-static void getgen(int gen, int c, uint32_t* pPC)
+static void getgen(DecodeData* This, int gen, int c)
 {
    gen &= 0x1F;
-   Regs[c].Whole = gen;
+   This->Regs[c].Whole = gen;
 
    if (gen >= EaPlusRn)
    {
-      Regs[c].Whole |= read_x8((*pPC)++) << 8;
-      (*pPC)++;
+      This->Regs[c].Whole |= read_x8(This->CurrentAddress) << 8;
+      This->CurrentAddress++;
 
-      if ((Regs[c].Whole & 0xF800) == (Immediate << 11))
+      if ((This->Regs[c].Whole & 0xF800) == (Immediate << 11))
       {
          SET_TRAP(IllegalImmediate);
       }
 
-      if ((Regs[c].Whole & 0xF800) >= (EaPlusRn << 11))
+      if ((This->Regs[c].Whole & 0xF800) >= (EaPlusRn << 11))
       {
          SET_TRAP(IllegalDoubleIndexing);
       }
    }
 }
 
-#define SET_FRED_SIZE(in) FredSize.Whole = OpSizeLookup[(in) & 0x03]
-
-void Decode(uint32_t* pPC)
+void SetSize(DecodeData* This, uint32_t Size)
 {
-   uint32_t StartPc = *pPC;
-   uint32_t opcode = read_x32(*pPC);
-   uint32_t Function = FunctionLookup[opcode & 0xFF];
-   uint32_t Format = Function >> 4;
+   Size &= 3;
+   Size++;
 
-   Regs[0].Whole =
-   Regs[1].Whole = 0xFFFF;
+   if (This->Info.Op[0].Size == 0)                                      // Only set size if it has not already been set
+   {
+      This->Info.Op[0].Size = Size;
+   }
+
+   if (This->Info.Op[1].Size == 0)
+   {
+      This->Info.Op[1].Size = Size;
+   }
+}
+
+void Decode(DecodeData* This)
+{
+   This->StartAddress    = This->CurrentAddress;
+   uint32_t   opcode    =
+   This->OpCode          = read_x32(This->StartAddress);
+   This->Function        = FunctionLookup[This->OpCode & 0xFF];
+   This->Info.Whole      = OpFlags[This->Function];
+   uint32_t Format      = This->Function >> 4;
 
    if (Format < (FormatCount + 1))
    {
-      *pPC += FormatSizes[Format];                                        // Add the basic number of bytes for a particular instruction
+      This->StartAddress += FormatSizes[Format];                                        // Add the basic number of bytes for a particular instruction
    }
 
-   FredSize.Whole = 0;
    switch (Format)
    {
       case Format0:
@@ -769,66 +764,68 @@ void Decode(uint32_t* pPC)
 
       case Format2:
       {
-         SET_FRED_SIZE(opcode);
-         getgen(opcode >> 11, 0, pPC);
+         SetSize(This, opcode);
+         getgen(This, opcode >> 11, 0);
       }
       break;
 
       case Format3:
       {
-         Function += ((opcode >> 7) & 0x0F);
-         SET_FRED_SIZE(opcode);
-         getgen(opcode >> 11, 0, pPC);
+         This->Function += ((opcode >> 7) & 0x0F);
+         SetSize(This, opcode);
+         getgen(This, opcode >> 11, 0);
       }
       break;
 
       case Format4:
       {
-         SET_FRED_SIZE(opcode);
-         getgen(opcode >> 11, 0, pPC);
-         getgen(opcode >> 6, 1, pPC);
+         SetSize(This, opcode);
+         getgen(This, opcode >> 11, 0);
+         getgen(This, opcode >> 6, 1);
       }
       break;
 
       case Format5:
       {
-         Function += ((opcode >> 10) & 0x0F);
-         SET_FRED_SIZE(opcode >> 8);
+         This->Function += ((opcode >> 10) & 0x0F);
+         SetSize(This, opcode >> 8);
+
          if (opcode & BIT(Translation))
          {
-            SET_FRED_SIZE(0);         // 8 Bit
+            This->Info.Op[0].Size = sz8;
+            This->Info.Op[1].Size = sz8;
          }
       }
       break;
 
       case Format6:
       {
-         Function += ((opcode >> 10) & 0x0F);
-         SET_FRED_SIZE(opcode >> 8);
+         This->Function += ((opcode >> 10) & 0x0F);
+         SetSize(This, opcode >> 8);
 
          // Ordering important here, as getgen uses Operand Size
-         switch (Function)
+         switch (This->Function)
          {
             case ROT:
             case ASH:
             case LSH:
             {
-               FredSize.Op[0] = sz8;
+               This->Info.Op[0].Size = sz8;
             }
             break;
          }
 
-         getgen(opcode >> 19, 0, pPC);
-         getgen(opcode >> 14, 1, pPC);
+         getgen(This, opcode >> 19, 0);
+         getgen(This, opcode >> 14, 1);
       }
       break;
 
       case Format7:
       {
-         Function += ((opcode >> 10) & 0x0F);
-         SET_FRED_SIZE(opcode >> 8);
-         getgen(opcode >> 19, 0, pPC);
-         getgen(opcode >> 14, 1, pPC);
+         This->Function += ((opcode >> 10) & 0x0F);
+         SetSize(This, opcode >> 8);
+         getgen(This, opcode >> 19, 0);
+         getgen(This, opcode >> 14, 1);
       }
       break;
 
@@ -842,60 +839,61 @@ void Decode(uint32_t* pPC)
                {
                   case 0x0C80:
                   {
-                     Function = MOVUS;
+                     This->Function = MOVUS;
                   }
                   break;
 
                   case 0x1C80:
                   {
-                     Function = MOVSU;
+                     This->Function = MOVSU;
                   }
                   break;
 
                   default:
                   {
-                     Function = TRAP;
+                     This->Function = TRAP;
                   }
                   break;
                }
             }
             else
             {
-               Function = (opcode & 0x40) ? FFS : INDEX;
+               This->Function = (opcode & 0x40) ? FFS : INDEX;
             }
          }
          else
          {
-            Function += ((opcode >> 6) & 3);
+            This->Function += ((opcode >> 6) & 3);
          }
 
-         SET_FRED_SIZE(opcode >> 8);
+         SetSize(This, opcode >> 8);
 
-         if (Function == CVTP)
+         if (This->Function == CVTP)
          {
-            SET_FRED_SIZE(3);               // 32 Bit
+            This->Info.Op[0].Size = sz32;
+            This->Info.Op[1].Size = sz32;
          }
 
-         getgen(opcode >> 19, 0, pPC);
-         getgen(opcode >> 14, 1, pPC);
+         getgen(This, opcode >> 19, 0);
+         getgen(This, opcode >> 14, 1);
       }
       break;
 
       case Format9:
       {
-         Function += ((opcode >> 11) & 0x07);
+         This->Function += ((opcode >> 11) & 0x07);
       }
       break;
 
       case Format11:
       {
-         Function += ((opcode >> 10) & 0x0F);
+         This->Function += ((opcode >> 10) & 0x0F);
       }
       break;
 
       case Format14:
       {
-         Function += ((opcode >> 10) & 0x0F);
+         This->Function += ((opcode >> 10) & 0x0F);
       }
       break;
 
@@ -906,7 +904,7 @@ void Decode(uint32_t* pPC)
       break;
    }
 
-   ShowInstruction(StartPc, pPC, opcode, Function, FredSize.Op[0]);
+   ShowInstruction(This);
 }
 
 #ifdef INSTRUCTION_PROFILING
@@ -953,13 +951,17 @@ void DisassembleUsingITrace(uint32_t Location, uint32_t End)
 
 void Disassemble(uint32_t Location, uint32_t End)
 {
+   DecodeData This;
+
+   This.CurrentAddress = Location;
+
    do
    {
-      Decode(&Location);
+      Decode(&This);
       ShowTraps();
       CLEAR_TRAP();
    }
-   while (Location < End);
+   while (This.CurrentAddress < End);
 
 #ifdef WIN32
    system("pause");

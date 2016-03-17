@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "Defs.h"
+#include "Decode.h"
 #include "32016.h"
 #include "mem32016.h"
 #include "Profile.h"

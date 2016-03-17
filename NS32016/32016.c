@@ -8,11 +8,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+
+#include "defs.h"
+#include "Decode.h"
 #include "32016.h"
 #include "mem32016.h"
-#include "defs.h"
 #include "Trap.h"
-#include "Decode.h"
 
 #ifdef PROFILING
 #include "Profile.h"
@@ -39,7 +40,7 @@ uint32_t Trace = 0;
 
 uint32_t startpc;
 
-RegLKU Regs[2];
+static RegLKU Regs[2];
 uint32_t genaddr[2];
 int gentype[2];
 OperandSizeType OpSize;
@@ -1286,10 +1287,19 @@ void n32016_exec()
          break;
       }
 
-      if (Trace) {
-         FredSize = OpSize;                     // Temporary hack :(
-         uint32_t Temp = pc;
-         ShowInstruction(startpc, &Temp, opcode, Function, OpSize.Op[0]);
+      if (Trace)
+      {
+         DecodeData This;
+         This.StartAddress = startpc;
+         This.Function = Function;
+         This.Info.Whole = OpFlags[Function];
+         This.Info.Op[0].Size = OpSize.Op[0];
+         This.Info.Op[1].Size = OpSize.Op[1];
+         This.CurrentAddress = pc;
+         This.OpCode = opcode;
+         This.Regs[0] = Regs[0];
+         This.Regs[1] = Regs[1];
+         ShowInstruction(&This);
       }
 
       GetGenPhase2(Regs[0], 0);

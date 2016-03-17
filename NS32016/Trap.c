@@ -3,9 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "defs.h"
+#include "Decode.h"
 #include "32016.h"
 #include "mem32016.h"
-#include "defs.h"
 #include "Trap.h"
 #include "Profile.h"
 

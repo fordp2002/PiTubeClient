@@ -3,10 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "32016.h"
-#include "Decode.h"
-#include "mem32016.h"
+
 #include "defs.h"
+#include "Decode.h"
+#include "32016.h"
+#include "mem32016.h"
 //#include "Trap.h"
 #include "NDis.h"
 #include "Profile.h"

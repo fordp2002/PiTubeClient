@@ -7,3 +7,5 @@
 #define SWAP16 __builtin_bswap16
 #define SWAP32 __builtin_bswap32
 #endif
+
+#define BIT(in)   (1 <<(in))

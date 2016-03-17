@@ -12,9 +12,6 @@
 
 #define MEM_MASK 0xFFFFFF
 
-
-#define BIT(in)   (1 <<(in))
-
 #define TEST(in) ((in) ? 1 : 0)
 #define C_FLAG PR.PSR.c_flag
 #define T_FLAG PR.PSR.t_flag
@@ -28,27 +25,6 @@
 #define S_FLAG PR.PSR.s_flag
 #define P_FLAG PR.PSR.p_flag
 #define I_FLAG PR.PSR.i_flag
-
-enum Formats
-{
-	Format0,
-	Format1,
-	Format2,
-	Format3,
-	Format4,
-	Format5,
-	Format6,
-	Format7,
-	Format8,
-   Format9,
-   Format10,
-   Format11,
-   Format12,
-   Format13,
-   Format14,
-   FormatCount,
-	FormatBad = 0xFF
-};
 
 enum RegType
 {
@@ -271,24 +247,7 @@ typedef union
 #define mod          PR.MOD.Whole
 #define nscfg        PR.CFG
 
-typedef union
-{
-   struct
-   {
-      unsigned OpType   : 5;
-      unsigned RegType  : 3;
-      unsigned IdxReg   : 3;
-      unsigned IdxType  : 5;
-   };
 
-   struct
-   {
-      uint8_t LowerByte;
-      uint8_t UpperByte;
-   };
-
-   uint16_t Whole;   
-} RegLKU;
 
 extern uint32_t sp[2];
 
@@ -323,8 +282,6 @@ extern int32_t GetDisplacement(uint32_t* pPC);
 
 extern ProcessorRegisters PR;
 extern uint32_t r[8];
-extern RegLKU Regs[2];
-extern OperandSizeType FredSize;
 
 extern void Disassemble(uint32_t Location, uint32_t End);
 
@@ -335,7 +292,7 @@ extern uint32_t IP[MEG16];
 
 
 #ifdef SHOW_INSTRUCTIONS
-extern void ShowInstruction(uint32_t pc, uint32_t* pPC, uint32_t opcode, uint32_t Function, uint32_t OperandSize);
+extern void ShowInstruction(DecodeData* This);
 #else
 #define ShowInstruction(...)
 #endif
