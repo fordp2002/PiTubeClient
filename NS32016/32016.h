@@ -316,7 +316,7 @@ extern FILE *pTraceFile;
 #define PiTRACE(...)
 #endif
 
-#define PiWARN(...)  { printf("pc=%08"PRIX32": ",pc); printf(__VA_ARGS__); }
+#define PiWARN(...)  { printf("pc=%08"PRIX32": ", Data.CurrentAddress); printf(__VA_ARGS__); }
 
 extern int tubecycles;
 extern int tube_irq;
@@ -331,7 +331,7 @@ extern const uint8_t FormatSizes[FormatCount + 1];
 #define PrintSP(str)
 #endif
 
-#define READ_PC_BYTE() read_x8(pc++) 
+#define READ_PC_BYTE() read_x8(Data.CurrentAddress++) 
 
 #define SIGN_EXTEND(size, reg) \
   if ((size == sz8) && (reg & 0x80)) { \

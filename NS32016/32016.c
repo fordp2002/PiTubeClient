@@ -27,9 +27,8 @@ ProcessorRegisters PR;
 uint32_t r[8];
 FloatingPointRegisters FR;
 uint32_t FSR;
-
-static uint32_t pc;
 uint32_t sp[2];
+
 Temp64Type Immediate64;
 
 #ifdef PC_SIMULATION
@@ -38,12 +37,11 @@ uint32_t Trace = 1;
 uint32_t Trace = 0;
 #endif
 
-uint32_t startpc;
+DecodeData Data;
+OperandSizeType OpSize;
 
-static RegLKU Regs[2];
 uint32_t genaddr[2];
 int gentype[2];
-OperandSizeType OpSize;
 
 const uint32_t IndexLKUP[8] = { 0x0, 0x1, 0x4, 0x5, 0x8, 0x9, 0xC, 0xD };                    // See Page 2-3 of the manual!
 
@@ -57,7 +55,7 @@ void n32016_ShowRegs(int Option)
 
    if (Option & BIT(1))
    {
-      TrapTRACE("PC=%08"PRIX32" SB=%08"PRIX32" SP=%08"PRIX32" TRAP=%08"PRIX32"\n", pc, sb, GET_SP(), TrapFlags);
+      TrapTRACE("PC=%08"PRIX32" SB=%08"PRIX32" SP=%08"PRIX32" TRAP=%08"PRIX32"\n", Data.CurrentAddress, sb, GET_SP(), TrapFlags);
       TrapTRACE("FP=%08"PRIX32" INTBASE=%08"PRIX32" PSR=%04"PRIX32" MOD=%04"PRIX32"\n", fp, intbase, psr, mod);
    }
 
@@ -107,7 +105,7 @@ void n32016_reset_addr(uint32_t StartAddress)
 {
    n32016_build_matrix();
 
-   pc = StartAddress;
+   Data.CurrentAddress = StartAddress;
    psr = 0;
 
    //PR.BPC = 0x20F; //Example Breakpoint
@@ -311,18 +309,18 @@ uint32_t ReadAddress(uint32_t c)
 static void getgen(int gen, int c)
 {
    gen &= 0x1F;
-   Regs[c].Whole = gen;
+   Data.Regs[c].Whole = gen;
 
    if (gen >= EaPlusRn)
    {
-      Regs[c].UpperByte = READ_PC_BYTE();
-      //Regs[c].Whole |= READ_PC_BYTE() << 8;
+      Data.Regs[c].UpperByte = READ_PC_BYTE();
+      //Data.Regs[c].Whole |= READ_PC_BYTE() << 8;
 
-      if (Regs[c].IdxType == Immediate)
+      if (Data.Regs[c].IdxType == Immediate)
       {
          SET_TRAP(IllegalImmediate);
       }
-      else if (Regs[c].IdxType >= EaPlusRn)
+      else if (Data.Regs[c].IdxType >= EaPlusRn)
       {
          SET_TRAP(IllegalDoubleIndexing);
       }
@@ -371,15 +369,15 @@ static void GetGenPhase2(RegLKU gen, int c)
 
          if (OpSize.Op[c] == sz64)
          {
-            temp3.u32 = SWAP32(read_x32(pc));
+            temp3.u32 = SWAP32(read_x32(Data.CurrentAddress));
             Immediate64.u64 = (((uint64_t) temp3.u32) << 32);
-            temp3.u32 = SWAP32(read_x32(pc + 4));
+            temp3.u32 = SWAP32(read_x32(Data.CurrentAddress + 4));
             Immediate64.u64 |= temp3.u32;
          }
          else
          {
             // Why can't they just decided on an endian and then stick to it?
-            temp3.u32 = SWAP32(read_x32(pc));
+            temp3.u32 = SWAP32(read_x32(Data.CurrentAddress));
             if (OpSize.Op[c] == sz8)
                genaddr[c] = temp3.u8;
             else if (OpSize.Op[c] == sz16)
@@ -388,7 +386,7 @@ static void GetGenPhase2(RegLKU gen, int c)
                genaddr[c] = temp3.u32;
          }
 
-         pc += OpSize.Op[c];
+         Data.CurrentAddress += OpSize.Op[c];
          gentype[c] = OpImmediate;
          return;
       }
@@ -397,7 +395,7 @@ static void GetGenPhase2(RegLKU gen, int c)
 
       if (gen.OpType <= R7_Offset)
       {
-         genaddr[c] = r[gen.Whole & 7] + GetDisplacement(&pc);
+         genaddr[c] = r[gen.Whole & 7] + GetDisplacement(&Data.CurrentAddress);
          return;
       }
 
@@ -427,35 +425,35 @@ static void GetGenPhase2(RegLKU gen, int c)
       switch (gen.OpType)
       {
          case FrameRelative:
-            temp = GetDisplacement(&pc);
-            temp2 = GetDisplacement(&pc);
+            temp = GetDisplacement(&Data.CurrentAddress);
+            temp2 = GetDisplacement(&Data.CurrentAddress);
             genaddr[c] = read_x32(fp + temp);
             genaddr[c] += temp2;
             break;
 
          case StackRelative:
-            temp = GetDisplacement(&pc);
-            temp2 = GetDisplacement(&pc);
+            temp = GetDisplacement(&Data.CurrentAddress);
+            temp2 = GetDisplacement(&Data.CurrentAddress);
             genaddr[c] = read_x32(GET_SP() + temp);
             genaddr[c] += temp2;
             break;
 
          case StaticRelative:
-            temp = GetDisplacement(&pc);
-            temp2 = GetDisplacement(&pc);
+            temp = GetDisplacement(&Data.CurrentAddress);
+            temp2 = GetDisplacement(&Data.CurrentAddress);
             genaddr[c] = read_x32(sb + temp);
             genaddr[c] += temp2;
             break;
 
          case Absolute:
-            genaddr[c] = GetDisplacement(&pc);
+            genaddr[c] = GetDisplacement(&Data.CurrentAddress);
             break;
 
          case External:
             temp = read_x32(mod + 4);
-            temp += ((int32_t) GetDisplacement(&pc)) * 4;
+            temp += ((int32_t) GetDisplacement(&Data.CurrentAddress)) * 4;
             temp2 = read_x32(temp);
-            genaddr[c] = temp2 + GetDisplacement(&pc);
+            genaddr[c] = temp2 + GetDisplacement(&Data.CurrentAddress);
             break;
 
          case TopOfStack:
@@ -464,19 +462,19 @@ static void GetGenPhase2(RegLKU gen, int c)
             break;
 
          case FpRelative:
-            genaddr[c] = GetDisplacement(&pc) + fp;
+            genaddr[c] = GetDisplacement(&Data.CurrentAddress) + fp;
             break;
 
          case SpRelative:
-            genaddr[c] = GetDisplacement(&pc) + GET_SP();
+            genaddr[c] = GetDisplacement(&Data.CurrentAddress) + GET_SP();
             break;
 
          case SbRelative:
-            genaddr[c] = GetDisplacement(&pc) + sb;
+            genaddr[c] = GetDisplacement(&Data.CurrentAddress) + sb;
             break;
 
          case PcRelative:
-            genaddr[c] = GetDisplacement(&pc) + startpc;
+            genaddr[c] = GetDisplacement(&Data.CurrentAddress) + Data.StartAddress;
             break;
 
          default:
@@ -739,7 +737,7 @@ static void handle_mei_dei_upper_write(uint64_t result)
    uint32_t temp;
    // Writing to an odd register is strictly speaking undefined
    // But BBC Basic relies on a particular behaviour that the NS32016 has in this case
-   uint32_t reg_addr = genaddr[1] + ((Regs[1].Whole & 1) ? -4 : 4);
+   uint32_t reg_addr = genaddr[1] + ((Data.Regs[1].Whole & 1) ? -4 : 4);
    switch (OpSize.Op[0])
    {
       case sz8:
@@ -970,18 +968,18 @@ void TakeInterrupt(uint32_t IntBase)
    psr &= ~0xF00;
    pushd((temp << 16) | mod);
    
-   while (read_x8(pc) == 0xB2)                                    // Do not stack the address of a WAIT instruction!
+   while (read_x8(Data.CurrentAddress) == 0xB2)                                    // Do not stack the address of a WAIT instruction!
    {
-      pc++;
+      Data.CurrentAddress++;
    }
    
-   pushd(pc);
+   pushd(Data.CurrentAddress);
    temp = read_x32(IntBase);
    mod = temp & 0xFFFF;
    temp3 = temp >> 16;
    sb = read_x32(mod);
    temp2 = read_x32(mod + 8);
-   pc = temp2 + temp3;
+   Data.CurrentAddress = temp2 + temp3;
 }
 
 void WarnIfShiftInvalid(uint32_t shift, uint8_t size)
@@ -1000,7 +998,7 @@ uint32_t ReturnCommon(void)
       return 1;                  // Trap
    }
 
-   pc = popd();
+   Data.CurrentAddress = popd();
    uint16_t unstack = popw();
 
    if (nscfg.de_flag == 0)
@@ -1047,26 +1045,26 @@ void n32016_exec()
       WriteIndex     = 1;                                                   // Default to writing operand 0
       OpSize.Whole   = 0;
  
-      Regs[0].Whole  =
-      Regs[1].Whole  = 0xFFFF;
+      Data.Regs[0].Whole  =
+      Data.Regs[1].Whole  = 0xFFFF;
 
-      startpc  = pc;
-      opcode = read_x32(pc);
+      Data.StartAddress  = Data.CurrentAddress;
+      opcode = read_x32(Data.CurrentAddress);
 
-      if (pc == PR.BPC)
+      if (Data.CurrentAddress == PR.BPC)
       {
          SET_TRAP(BreakPointHit);
          goto DoTrap;
       }
 
-      BreakPoint(startpc, opcode);
+      BreakPoint(Data.StartAddress, opcode);
 
       Function = FunctionLookup[opcode & 0xFF];
       uint32_t Format   = Function >> 4;
 
       if (Format < (FormatCount + 1))
       {
-         pc += FormatSizes[Format];                                        // Add the basic number of bytes for a particular instruction
+         Data.CurrentAddress += FormatSizes[Format];                                        // Add the basic number of bytes for a particular instruction
       }
 
       switch (Format)
@@ -1215,7 +1213,7 @@ void n32016_exec()
                   OpSize.Op[1] = GET_F_SIZE(opcode & BIT(10));                      // Destination Size (Float/ Double)
                   getgen(opcode >> 19, 0);                                          // Source Operand
                   getgen(opcode >> 14, 1);                                          // Destination Operand
-                  Regs[1].RegType = GET_PRECISION(opcode & BIT(10));
+                  Data.Regs[1].RegType = GET_PRECISION(opcode & BIT(10));
                }
                break;
 
@@ -1228,7 +1226,7 @@ void n32016_exec()
                   OpSize.Op[1] = ((opcode >> 8) & 3) + 1;                           // Destination Size (Integer)
                   getgen(opcode >> 19, 0);                                          // Source Operand
                   getgen(opcode >> 14, 1);                                          // Destination Operand
-                  Regs[0].RegType = GET_PRECISION(opcode & BIT(10));
+                  Data.Regs[0].RegType = GET_PRECISION(opcode & BIT(10));
                }
                break;
 
@@ -1240,14 +1238,14 @@ void n32016_exec()
                      getgen(opcode >> 19, 0);
                      if (Function != MOVif)
                      {
-                        Regs[0].RegType = GET_PRECISION(opcode & BIT(8));
+                        Data.Regs[0].RegType = GET_PRECISION(opcode & BIT(8));
                      }
                   }
 
                   if (Function != LFSR)
                   {
                      getgen(opcode >> 14, 1);
-                     Regs[0].RegType = GET_PRECISION(opcode & BIT(8));
+                     Data.Regs[0].RegType = GET_PRECISION(opcode & BIT(8));
                   }
                }
                break;
@@ -1269,8 +1267,8 @@ void n32016_exec()
             OpSize.Op[1] = GET_F_SIZE(opcode & BIT(8));
             getgen(opcode >> 19, 0);
             getgen(opcode >> 14, 1);
-            Regs[0].RegType =
-            Regs[1].RegType = GET_PRECISION(opcode & BIT(8));
+            Data.Regs[0].RegType =
+            Data.Regs[1].RegType = GET_PRECISION(opcode & BIT(8));
          }
          break;
 
@@ -1290,24 +1288,24 @@ void n32016_exec()
       if (Trace)
       {
          DecodeData This;
-         This.StartAddress = startpc;
+         This.StartAddress = Data.StartAddress;
          This.Function = Function;
          This.Info.Whole = OpFlags[Function];
          This.Info.Op[0].Size = OpSize.Op[0];
          This.Info.Op[1].Size = OpSize.Op[1];
-         This.CurrentAddress = pc;
+         This.CurrentAddress = Data.CurrentAddress;
          This.OpCode = opcode;
-         This.Regs[0] = Regs[0];
-         This.Regs[1] = Regs[1];
+         This.Regs[0] = Data.Regs[0];
+         This.Regs[1] = Data.Regs[1];
          ShowInstruction(&This);
       }
 
-      GetGenPhase2(Regs[0], 0);
-      GetGenPhase2(Regs[1], 1);
+      GetGenPhase2(Data.Regs[0], 0);
+      GetGenPhase2(Data.Regs[1], 1);
 
       if (Function <= RETT)
       {
-         temp = GetDisplacement(&pc);
+         temp = GetDisplacement(&Data.CurrentAddress);
       }
 
       if (TrapFlags)
@@ -1318,11 +1316,11 @@ void n32016_exec()
       }
 
 #ifdef INSTRUCTION_PROFILING
-      IP[startpc]++;
+      IP[Data.StartAddress]++;
 #endif
 
 #ifdef PROFILING
-      ProfileAdd(Function, Regs[0].Whole, Regs[1].Whole);
+      ProfileAdd(Function, Data.Regs[0].Whole, Data.Regs[1].Whole);
 #endif
 
       switch (Function)
@@ -1353,7 +1351,7 @@ void n32016_exec()
 
          case BR:
          {
-            pc = startpc + temp;
+            Data.CurrentAddress = Data.StartAddress + temp;
             continue;
          }
          // No break due to continue
@@ -1368,15 +1366,15 @@ void n32016_exec()
 
          case BSR:
          {
-            pushd(pc);
-            pc = startpc + temp;
+            pushd(Data.CurrentAddress);
+            Data.CurrentAddress = Data.StartAddress + temp;
             continue;
          }
          // No break due to continue
 
          case RET:
          {
-            pc = popd();
+            Data.CurrentAddress = popd();
             INC_SP(temp);
             continue;
          }
@@ -1388,19 +1386,19 @@ void n32016_exec()
 
             temp = read_x32(temp2);   // Matching Tail with CXPD, complier do your stuff
             pushd((CXP_UNUSED_WORD << 16) | mod);
-            pushd(pc);
+            pushd(Data.CurrentAddress);
             mod = temp & 0xFFFF;
             temp3 = temp >> 16;
             sb = read_x32(mod);
             temp2 = read_x32(mod + 8);
-            pc = temp2 + temp3;
+            Data.CurrentAddress = temp2 + temp3;
             continue;
          }
          // No break due to continue
 
          case RXP:
          {
-            pc = popd();
+            Data.CurrentAddress = popd();
             temp2 = popd();
             mod = temp2 & 0xFFFF;
             INC_SP(temp);
@@ -1460,7 +1458,7 @@ void n32016_exec()
          {
             int c;
             temp = READ_PC_BYTE();
-            temp2 = GetDisplacement(&pc);
+            temp2 = GetDisplacement(&Data.CurrentAddress);
             pushd(fp);
             fp = GET_SP();
             DEC_SP(temp2);
@@ -1495,7 +1493,7 @@ void n32016_exec()
          case DIA:                                              // Wait for interrupt and in theory never resume execution (stack manipulation would get round this)
          {
             tubecycles = 0;                                    // Exit promptly as we are waiting for an interrupt
-            pc = startpc;
+            Data.CurrentAddress = Data.StartAddress;
             continue;
          }
          // No break due to continue
@@ -1512,13 +1510,13 @@ void n32016_exec()
             psr &= ~0x700;
             // In SVC, the address pushed is the address of the SVC opcode
             pushd((temp << 16) | mod);
-            pushd(startpc);
+            pushd(Data.StartAddress);
             temp = read_x32(intbase + (5 * 4));
             mod = temp & 0xFFFF;
             temp3 = temp >> 16;
             sb = read_x32(mod);
             temp2 = read_x32(mod + 8);
-            pc = temp2 + temp3;
+            Data.CurrentAddress = temp2 + temp3;
             continue;
          }
          // No break due to continue
@@ -1612,9 +1610,9 @@ void n32016_exec()
             NIBBLE_EXTEND(temp2);
             temp = ReadGen(0);
             temp += temp2;
-            temp2 = GetDisplacement(&pc);
+            temp2 = GetDisplacement(&Data.CurrentAddress);
             if (Truncate(temp, OpSize.Op[0]))
-               pc = startpc + temp2;
+               Data.CurrentAddress = Data.StartAddress + temp2;
          }
          break;
 
@@ -1685,12 +1683,12 @@ void n32016_exec()
 
             temp = read_x32(temp2);   // Matching Tail with CXPD, complier do your stuff
             pushd((CXP_UNUSED_WORD << 16) | mod);
-            pushd(pc);
+            pushd(Data.CurrentAddress);
             mod = temp & 0xFFFF;
             temp3 = temp >> 16;
             sb = read_x32(mod);
             temp2 = read_x32(mod + 8);
-            pc = temp2 + temp3;
+            Data.CurrentAddress = temp2 + temp3;
             continue;
          }
          // No break due to continue
@@ -1714,7 +1712,7 @@ void n32016_exec()
          case JUMP:
          {
             // JUMP is in access class addr, so ReadGen() cannot be used
-            pc = ReadAddress(0);
+            Data.CurrentAddress = ReadAddress(0);
             continue;
          }
          // No break due to continue
@@ -1747,8 +1745,8 @@ void n32016_exec()
          case JSR:
          {
             // JSR is in access class addr, so ReadGen() cannot be used
-            pushd(pc);
-            pc = ReadAddress(0);
+            pushd(Data.CurrentAddress);
+            Data.CurrentAddress = ReadAddress(0);
             continue;
          }
          // No break due to continue
@@ -1757,7 +1755,7 @@ void n32016_exec()
          {
             temp = ReadGen(0);
             SIGN_EXTEND(OpSize.Op[0], temp);
-            pc = startpc + temp;
+            Data.CurrentAddress = Data.StartAddress + temp;
             continue;
          }
          // No break due to continue
@@ -1892,7 +1890,7 @@ void n32016_exec()
             write_Arbitary(r[2], &temp, OpSize.Op[0]);
 
             StringRegisterUpdate(opcode);
-            pc = startpc; // Not finsihed so come back again!
+            Data.CurrentAddress = Data.StartAddress; // Not finsihed so come back again!
             continue;
          }
          // No break due to continue
@@ -1925,7 +1923,7 @@ void n32016_exec()
             }
 
             StringRegisterUpdate(opcode);
-            pc = startpc;                                               // Not finsihed so come back again!
+            Data.CurrentAddress = Data.StartAddress;                                               // Not finsihed so come back again!
             continue;
          }
          // No break due to continue
@@ -1964,7 +1962,7 @@ void n32016_exec()
             }
 
             StringRegisterUpdate(opcode);
-            pc = startpc; // Not finsihed so come back again!
+            Data.CurrentAddress = Data.StartAddress; // Not finsihed so come back again!
             continue;
          }
          // No break due to continue
@@ -2235,8 +2233,8 @@ void n32016_exec()
          {
             uint32_t First    = ReadAddress(0);
             uint32_t Second   = ReadAddress(1);
-            //temp = GetDisplacement(&pc) + OpSize.Op[0];                      // disp of 0 means move 1 byte
-            temp = (GetDisplacement(&pc) & ~(OpSize.Op[0] - 1))  + OpSize.Op[0];
+            //temp = GetDisplacement(&Data.CurrentAddress) + OpSize.Op[0];                      // disp of 0 means move 1 byte
+            temp = (GetDisplacement(&Data.CurrentAddress) & ~(OpSize.Op[0] - 1))  + OpSize.Op[0];
             while (temp)
             {
                temp2 = read_x8(First);
@@ -2256,7 +2254,7 @@ void n32016_exec()
             uint32_t First    = ReadAddress(0);
             uint32_t Second   = ReadAddress(1);
 
-            temp3 = (GetDisplacement(&pc) / temp4) + 1;
+            temp3 = (GetDisplacement(&Data.CurrentAddress) / temp4) + 1;
 
             //PiTRACE("CMP Size = %u Count = %u\n", temp4, temp3);
             while (temp3--)
@@ -2509,7 +2507,7 @@ void n32016_exec()
          {
             uint32_t c;
             int32_t  Offset = r[(opcode >> 11) & 7];
-            uint32_t Length = GetDisplacement(&pc);
+            uint32_t Length = GetDisplacement(&Data.CurrentAddress);
             uint32_t StartBit;
 
             if (Length < 1 || Length > 32)
@@ -2571,7 +2569,7 @@ void n32016_exec()
          {
             uint32_t c;
             int32_t  Offset = r[(opcode >> 11) & 7];
-            uint32_t Length = GetDisplacement(&pc);
+            uint32_t Length = GetDisplacement(&Data.CurrentAddress);
             uint32_t Source = ReadGen(0);
             uint32_t StartBit;
 
@@ -2722,7 +2720,7 @@ void n32016_exec()
          {
             Temp32Type Src;
             Src.u32 = ReadGen(0);
-            if (Regs[1].RegType == DoublePrecision)
+            if (Data.Regs[1].RegType == DoublePrecision)
             {
                temp64.f64 = (double) Src.s32;
             }
@@ -2761,7 +2759,7 @@ void n32016_exec()
 
          case ROUND:
          {
-            if (Regs[0].RegType == DoublePrecision)
+            if (Data.Regs[0].RegType == DoublePrecision)
             {
                temp64.u64 = ReadGen64(0);
                temp = (int32_t) round(temp64.f64);
@@ -2777,7 +2775,7 @@ void n32016_exec()
 
          case TRUNC:
          {
-            if (Regs[0].RegType == DoublePrecision)
+            if (Data.Regs[0].RegType == DoublePrecision)
             {
                temp64.u64 = ReadGen64(0);
                temp = (int32_t) temp64.f64;
@@ -2799,7 +2797,7 @@ void n32016_exec()
 
          case FLOOR:
          {
-            if (Regs[0].RegType == DoublePrecision)
+            if (Data.Regs[0].RegType == DoublePrecision)
             {
                temp64.u64 = ReadGen64(0);
                temp = (int32_t) floor(temp64.f64);
@@ -2816,7 +2814,7 @@ void n32016_exec()
          // Format 11
          case ADDf:
          {
-            if (Regs[0].RegType == DoublePrecision)
+            if (Data.Regs[0].RegType == DoublePrecision)
             {
                Temp64Type Src;
                Src.u64     = ReadGen64(0);
@@ -2838,7 +2836,7 @@ void n32016_exec()
 
          case MOVf:
          {
-            if (Regs[0].RegType == DoublePrecision)
+            if (Data.Regs[0].RegType == DoublePrecision)
             {
                temp64.u64 = ReadGen64(0);
             }
@@ -2853,7 +2851,7 @@ void n32016_exec()
          {
             L_FLAG = 0;
 
-            if (Regs[0].RegType == DoublePrecision)
+            if (Data.Regs[0].RegType == DoublePrecision)
             {
                Temp64Type Src;
                Src.u64 = ReadGen64(0);
@@ -2877,7 +2875,7 @@ void n32016_exec()
  
          case SUBf:
          {
-            if (Regs[0].RegType == DoublePrecision)
+            if (Data.Regs[0].RegType == DoublePrecision)
             {
                Temp64Type Src;
                Src.u64    = ReadGen64(0);
@@ -2899,7 +2897,7 @@ void n32016_exec()
 
          case NEGf:
          {
-            if (Regs[0].RegType == DoublePrecision)
+            if (Data.Regs[0].RegType == DoublePrecision)
             {
                Temp64Type Src;
                Src.u64 = ReadGen64(0);
@@ -2917,7 +2915,7 @@ void n32016_exec()
 
          case DIVf:
          {
-            if (Regs[0].RegType == DoublePrecision)
+            if (Data.Regs[0].RegType == DoublePrecision)
             {
                Temp64Type Src;
                Src.u64 = ReadGen64(0);
@@ -2939,7 +2937,7 @@ void n32016_exec()
 
          case MULf:
          {
-            if (Regs[0].RegType == DoublePrecision)
+            if (Data.Regs[0].RegType == DoublePrecision)
             {
                Temp64Type Src;
                Src.u64 = ReadGen64(0);
@@ -2961,7 +2959,7 @@ void n32016_exec()
 
          case ABSf:
          {
-            if (Regs[0].RegType == DoublePrecision)
+            if (Data.Regs[0].RegType == DoublePrecision)
             {
                Temp64Type Src;
                Src.u64 = ReadGen64(0);
@@ -3017,7 +3015,7 @@ void n32016_exec()
 
                if (WriteSize <= sz32)
                {
-                  ShowRegisterWrite(Regs[WriteIndex], Truncate(temp, WriteSize));
+                  ShowRegisterWrite(Data.Regs[WriteIndex], Truncate(temp, WriteSize));
                }
             }
             break;
@@ -3044,7 +3042,7 @@ void n32016_exec()
       }
 
 #if 0
-      switch (Regs[1].RegType)
+      switch (Data.Regs[1].RegType)
       {
          case SinglePrecision:
          {
