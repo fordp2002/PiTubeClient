@@ -93,24 +93,24 @@ void n32016_build_matrix()
    }
 }
 
-void BreakPoint(uint32_t pc, uint32_t opcode)
+void BreakPoint(DecodeData* This)
 {
 #if 1
 #ifndef TEST_SUITE
    // Exec address of Bas32
-   if (pc == 0x000200)
+   if (This.StartAddress == 0x000200)
    {
       printf("Entering Bas32\n");
       ProfileInit();
    }
    // Exec address of Panos
-   if (pc == 0x000400)
+   if (This.StartAddress == 0x000400)
    {
       printf("Entering Panos\n");
       ProfileInit();
    }
    // Address of SVC &11 (OS_EXIT)
-   if (pc == 0xF007BB)
+   if (This.StartAddress == 0xF007BB)
    {
       n32016_dumpregs("Retuning to Pandora");
       ProfileInit();

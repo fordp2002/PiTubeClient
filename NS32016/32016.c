@@ -1030,28 +1030,25 @@ void n32016_exec()
    while (tubecycles > 0)
    {
       tubecycles -= 8;
-
       CLEAR_TRAP();
 
-      WriteIndex     = 1;                                                   // Default to writing operand 0
-      Data.Info.Whole = 0;
- 
-      Data.Regs[0].Whole  =
-      Data.Regs[1].Whole  = 0xFFFF;
+      WriteIndex           = 1;                                                   // Default to writing operand 0
+      Data.Regs[0].Whole   =
+      Data.Regs[1].Whole   = 0xFFFF;
+      Data.StartAddress    = Data.CurrentAddress;
+      Data.OpCode          = 
+      opcode               = read_x32(Data.CurrentAddress);
+      Data.Function        = FunctionLookup[opcode & 0xFF];
+      Data.Info.Whole      = OpFlags[Data.Function];
+      uint32_t Format      = Data.Function >> 4;
 
-      Data.StartAddress  = Data.CurrentAddress;
-      opcode = read_x32(Data.CurrentAddress);
-
-      if (Data.CurrentAddress == PR.BPC)
+      if (Data.StartAddress == PR.BPC)
       {
          SET_TRAP(BreakPointHit);
          goto DoTrap;
       }
 
-      BreakPoint(Data.StartAddress, opcode);
-
-      Data.Function = FunctionLookup[opcode & 0xFF];
-      uint32_t Format   = Data.Function >> 4;
+      BreakPoint(&Data);
 
       if (Format < (FormatCount + 1))
       {
@@ -1275,16 +1272,7 @@ void n32016_exec()
 
       if (Trace)
       {
-         DecodeData This;
-         This.StartAddress = Data.StartAddress;
-         This.Function = Data.Function;
-         This.Info.Whole = OpFlags[Data.Function];
-         This.Info.Op[0].Size = Data.Info.Op[0].Size;
-         This.Info.Op[1].Size = Data.Info.Op[1].Size;
-         This.CurrentAddress = Data.CurrentAddress;
-         This.OpCode = opcode;
-         This.Regs[0] = Data.Regs[0];
-         This.Regs[1] = Data.Regs[1];
+         DecodeData This = Data;                   // Make copy as data is altered
          ShowInstruction(&This);
       }
 
