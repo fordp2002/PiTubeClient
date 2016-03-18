@@ -167,14 +167,14 @@ const uint32_t OpFlags[InstructionCount] =
    OP(not_used, not_used),
 
    // Format 2  
-   OP(not_used, not_used),    // ADDQ    
-   OP(not_used, not_used),    // CMPQ
-   OP(not_used, not_used),    // SPR
-   OP(not_used, not_used),    // Scond
+   OP(rmw,      not_used),    // ADDQ    
+   OP(read,     not_used),    // CMPQ
+   OP(write,    not_used),    // SPR
+   OP(write,    not_used),    // Scond
 
-   OP(not_used, not_used),    // ACB
-   OP(not_used, not_used),    // LPR
-   OP(not_used, not_used),
+   OP(rmw,      not_used),    // ACB
+   OP(write,    not_used),    // MOVQ
+   OP(read,     not_used),    // LPR
    OP(not_used, not_used),
 
    OP(not_used, not_used),
@@ -188,45 +188,45 @@ const uint32_t OpFlags[InstructionCount] =
    OP(not_used, not_used),
 
    // Format 3  
-   OP(not_used, not_used),    // CXPD    
+   OP(addr,     not_used),    // CXPD    
    OP(not_used, not_used),
-   OP(not_used, not_used),    // BICPSR
-   OP(not_used, not_used),
-
-   OP(not_used, not_used),    // JUMP
-   OP(not_used, not_used),
-   OP(not_used, not_used),    // BIPSR
+   OP(read,     not_used),    // BICPSR
    OP(not_used, not_used),
 
+   OP(addr,     not_used),    // JUMP
    OP(not_used, not_used),
-   OP(not_used, not_used),
-   OP(not_used, not_used),    // ADJSP
+   OP(read,     not_used),    // BIPSR
    OP(not_used, not_used),
 
-   OP(not_used, not_used),    // JSR
    OP(not_used, not_used),
-   OP(not_used, not_used),    // CASE
+   OP(not_used, not_used),
+   OP(read,     not_used),    // ADJSP
+   OP(not_used, not_used),
+
+   OP(addr,     not_used),    // JSR
+   OP(not_used, not_used),
+   OP(read,     not_used),    // CASE
    OP(not_used, not_used),
 
    // Format 4
-   OP(not_used, not_used),    // ADD
-   OP(not_used, not_used),    // CMP
-   OP(not_used, not_used),    // BIC
+   OP(read,     rmw),         // ADD
+   OP(read,     read),        // CMP
+   OP(read,     rmw),         // BIC
    OP(not_used, not_used),
 
-   OP(not_used, not_used),    // ADDC
-   OP(not_used, not_used),    // MOV
-   OP(not_used, not_used),    // OR
+   OP(read,     rmw),         // ADDC
+   OP(read,     write),       // MOV
+   OP(read,     rmw),         // OR
    OP(not_used, not_used),
 
-   OP(not_used, not_used),    // SYB
-   OP(not_used, not_used),    // ADDR
-   OP(not_used, not_used),    // AND
+   OP(read,     rmw),         // SUB
+   OP(addr,     not_used),    // ADDR
+   OP(read,     rmw),         // AND
    OP(not_used, not_used),
 
-   OP(not_used, not_used),    // SUBC
-   OP(not_used, not_used),    // TBIT
-   OP(not_used, not_used),    // XOR
+   OP(read,     rmw),         // SUBC
+   OP(Regaddr,  read),        // TBIT
+   OP(read,     rmw),         // XOR
    OP(not_used, not_used),
 
    // Format 5
@@ -251,57 +251,57 @@ const uint32_t OpFlags[InstructionCount] =
    OP(not_used, not_used),
 
    // Format 6
-   OP(not_used, not_used),    // ROT
-   OP(not_used, not_used),    // ASH
-   OP(not_used, not_used),    // CBIT
-   OP(not_used, not_used),    // CBITI
+   OP(read,     rmw),                       // ROT
+   OP(read,     rmw),                       // ASH
+   OP(Regaddr,  rmw),                       // CBIT
+   OP(Regaddr,  rmw),                       // CBITI
 
    OP(not_used, not_used),
-   OP(not_used, not_used),    // LSH
-   OP(not_used, not_used),    // SBIT
-   OP(not_used, not_used),    // SBITI
+   OP(read,     rmw),                     // LSH
+   OP(Regaddr,  rmw),                     // SBIT
+   OP(Regaddr,  rmw),                     // SBITI
 
-   OP(not_used, not_used),    // NEG
-   OP(not_used, not_used),    // NOT
+   OP(read,     write),                   // NEG
+   OP(read,     write),                   // NOT
    OP(not_used, not_used),
-   OP(not_used, not_used),    // SUBP
+   OP(read,     rmw),                     // SUBP
 
-   OP(not_used, not_used),    // ABS
-   OP(not_used, not_used),    // COM
-   OP(not_used, not_used),    // IBIT
-   OP(not_used, not_used),    // ADDP
+   OP(read,     write),                   // ABS
+   OP(read,     write),                   // COM
+   OP(Regaddr,  rmw),                     // IBIT
+   OP(read,     rmw),                     // ADDP
 
    // Format 7
-   OP(not_used, not_used),    // MOVM
-   OP(not_used, not_used),    // CMPM
-   OP(not_used, not_used),    // INSS
-   OP(not_used, not_used),    // EXTS
+   OP(addr,     addr),                    // MOVM
+   OP(addr,     addr),                    // CMPM
+   OP(EXTRA_BYTE | read,  rmw | sz32),    // INSS
+   OP(EXTRA_BYTE | read,  rmw),           // EXTS
 
-   OP(not_used, not_used),    // MOVXiW
-   OP(not_used, not_used),    // MOVZiW
-   OP(not_used, not_used),    // MOVZiD
-   OP(not_used, not_used),    // MOVXiD 
+   OP(read,     write | sz16),            // MOVXiW
+   OP(read,     write | sz16),            // MOVZiW
+   OP(read,     write | sz32),            // MOVZiD
+   OP(read,     write | sz32),            // MOVXiD 
 
-   OP(not_used, not_used),    // MUL
-   OP(not_used, not_used),    // MEI
+   OP(read,     rmw),                     // MUL
+   OP(read,     rmw),                     // MEI
    OP(not_used, not_used),
-   OP(not_used, not_used),    // DEI
+   OP(read,     rmw),                     // DEI
 
-   OP(not_used, not_used),    // QUO
-   OP(not_used, not_used),    // REM
-   OP(not_used, not_used),    // MOD
-   OP(not_used, not_used),    // DIV
+   OP(read,     rmw),                     // QUO
+   OP(read,     rmw),                     // REM
+   OP(read,     rmw),                     // MOD
+   OP(read,     rmw),                     // DIV
 
    // Format 8
-   OP(not_used, not_used),    // EXT
-   OP(not_used, not_used),    // CVTP
-   OP(not_used, not_used),    // INS
-   OP(not_used, not_used),    // CHECK
+   OP(read | sz32, write),                // EXT
+   OP(addr,        write),                // CVTP
+   OP(read,        rmw | sz32),           // INS
+   OP(addr,        read),                 // CHECK
 
-   OP(not_used, not_used),    // INDEX
-   OP(not_used, not_used),    // FFS
-   OP(not_used, not_used),    // MOVUS
-   OP(not_used, not_used),    // MOVSU
+   OP(read,        read),                 // INDEX
+   OP(read,        rmw),                  // FFS
+   OP(not_used, not_used),                // MOVUS
+   OP(not_used, not_used),                // MOVSU
 
    OP(not_used, not_used),
    OP(not_used, not_used),
@@ -490,11 +490,11 @@ static void getgen(DecodeData* This, int gen, int c)
 
 uint32_t Decode(DecodeData* This)
 {
+   uint32_t Trap           = NoIssue;
    This->StartAddress      = This->CurrentAddress;
    uint32_t OpCode         =
    This->OpCode            = read_x32(This->StartAddress);
    This->Function          = FunctionLookup[This->OpCode & 0xFF];
-   This->Info.Whole        = OpFlags[This->Function];
    uint32_t Format         = This->Function >> 4;
 
    if (Format < (FormatCount + 1))
@@ -507,12 +507,14 @@ uint32_t Decode(DecodeData* This)
       case Format0:
       case Format1:
       {
+         This->Info.Whole = OpFlags[This->Function];
          // Nothing here!
       }
       break;
 
       case Format2:
       {
+         This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode);
          getgen(This, OpCode >> 11, 0);
       }
@@ -521,6 +523,7 @@ uint32_t Decode(DecodeData* This)
       case Format3:
       {
          This->Function += ((OpCode >> 7) & 0x0F);
+         This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode);
          getgen(This, OpCode >> 11, 0);
       }
@@ -528,6 +531,7 @@ uint32_t Decode(DecodeData* This)
 
       case Format4:
       {
+         This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode);
          getgen(This, OpCode >> 11, 0);
          getgen(This, OpCode >> 6, 1);
@@ -537,6 +541,7 @@ uint32_t Decode(DecodeData* This)
       case Format5:
       {
          This->Function += ((OpCode >> 10) & 0x0F);
+         This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode >> 8);
 
          if (This->Function == SETCFG)
@@ -554,6 +559,7 @@ uint32_t Decode(DecodeData* This)
       case Format6:
       {
          This->Function += ((OpCode >> 10) & 0x0F);
+         This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode >> 8);
 
          // Ordering important here, as getgen uses Operand Size
@@ -576,6 +582,7 @@ uint32_t Decode(DecodeData* This)
       case Format7:
       {
          This->Function += ((OpCode >> 10) & 0x0F);
+         This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode >> 8);
          getgen(This, OpCode >> 19, 0);
          getgen(This, OpCode >> 14, 1);
@@ -619,6 +626,7 @@ uint32_t Decode(DecodeData* This)
             This->Function += ((OpCode >> 6) & 3);
          }
 
+         This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode >> 8);
 
          if (This->Function == CVTP)
@@ -635,6 +643,7 @@ uint32_t Decode(DecodeData* This)
       case Format9:
       {
          This->Function += ((OpCode >> 11) & 0x07);
+         This->Info.Whole = OpFlags[This->Function];
 
          switch (This->Function)
          {
@@ -644,7 +653,6 @@ uint32_t Decode(DecodeData* This)
                This->Info.Op[1].Size = GET_F_SIZE(This->OpCode & BIT(10));             // Destination Size (Float/ Double)
                getgen(This, OpCode >> 19, 0);                                          // Source Operand
                getgen(This, OpCode >> 14, 1);                                          // Destination Operand
-               This->Regs[1].RegType = GET_PRECISION(OpCode & BIT(10));
             }
             break;
 
@@ -656,7 +664,6 @@ uint32_t Decode(DecodeData* This)
                This->Info.Op[1].Size = ((OpCode >> 8) & 3) + 1;                        // Destination Size (Integer)
                getgen(This, OpCode >> 19, 0);                                          // Source Operand
                getgen(This, OpCode >> 14, 1);                                          // Destination Operand
-               This->Regs[0].RegType = GET_PRECISION(OpCode & BIT(10));
             }
             break;
 
@@ -668,14 +675,14 @@ uint32_t Decode(DecodeData* This)
                   getgen(This, OpCode >> 19, 0);
                   if (This->Function != MOVif)
                   {
-                     This->Regs[0].RegType = GET_PRECISION(OpCode & BIT(8));
+                     This->Info.Op[0].Size = GET_F_SIZE(OpCode & BIT(8));               // Source Size (Float/ Double)
                   }
                }
 
                if (This->Function != LFSR)
                {
                   getgen(This, OpCode >> 14, 1);
-                  This->Regs[0].RegType = GET_PRECISION(OpCode & BIT(8));
+                  This->Info.Op[1].Size = GET_F_SIZE(OpCode & BIT(8));                  // Source Size (Float/ Double)
                }
             }
             break;
@@ -683,7 +690,7 @@ uint32_t Decode(DecodeData* This)
 
          if (nscfg.fpu_flag == 0)
          {
-            return UnknownInstruction;
+            Trap = UnknownInstruction;
          }
       }
       break;
@@ -692,16 +699,15 @@ uint32_t Decode(DecodeData* This)
       case Format12:
       {
          This->Function += ((OpCode >> 10) & 0x0F);
+         This->Info.Whole = OpFlags[This->Function];
          This->Info.Op[0].Size =
          This->Info.Op[1].Size = GET_F_SIZE(OpCode & BIT(8));
          getgen(This, OpCode >> 19, 0);
          getgen(This, OpCode >> 14, 1);
-         This->Regs[0].RegType =
-         This->Regs[1].RegType = GET_PRECISION(OpCode & BIT(8));
 
          if (nscfg.fpu_flag == 0)
          {
-            return UnknownInstruction;
+            Trap = UnknownInstruction;
          }
       }
       break;
@@ -709,15 +715,16 @@ uint32_t Decode(DecodeData* This)
       case Format14:
       {
          This->Function += ((OpCode >> 10) & 0x0F);
+         This->Info.Whole = OpFlags[This->Function];
       }
       break;
 
       default:
       {
-         return UnknownFormat;
+         Trap = UnknownFormat;
       }
-      // No break due to return
+      break;
    }
 
-   return NoIssue;
+   return Trap;
 }

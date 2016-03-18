@@ -175,13 +175,26 @@ int64_t GetImmediate(DecodeData* This, uint32_t Index)
 }
 
 const char SizeLookup[] = "BWDQ";
-const char RegLetter[]  = "RDF*****";
 
 void GetOperandText(DecodeData* This, RegLKU Pattern, uint32_t Index)
 {
    if (Pattern.OpType < 8)
    {
-      PiTRACE("%c%0" PRId32, RegLetter[Pattern.RegType], Pattern.OpType);
+      if (This->Info.Op[Index].Class & 0x80)
+      {
+         if (This->Info.Op[Index].Size == sz32)
+         {
+            PiTRACE("F%0" PRId32, Pattern.OpType);
+         }
+         else
+         {
+            PiTRACE("D%0" PRId32, Pattern.OpType);
+         }
+      }
+      else
+      {
+         PiTRACE("R%0" PRId32, Pattern.OpType);
+      }
    }
    else if (Pattern.OpType < 16)
    {
@@ -694,7 +707,8 @@ void ShowRegisterWrite(RegLKU RegIn, uint32_t Value)
 {
    if (RegIn.OpType < 8)
    {
-#ifdef SHOW_REG_WRITES
+//#ifdef SHOW_REG_WRITES
+#if 0
       if (RegIn.RegType == Integer)
       {
          PiTRACE(" R%u = %"PRIX32"\n", RegIn.OpType, Value);

@@ -26,13 +26,6 @@
 #define P_FLAG PR.PSR.p_flag
 #define I_FLAG PR.PSR.i_flag
 
-enum RegType
-{
-   Integer,
-   SinglePrecision,
-   DoublePrecision
-};
-
 enum OpTypes
 {
    Memory,

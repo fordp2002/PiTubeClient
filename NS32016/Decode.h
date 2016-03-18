@@ -207,6 +207,7 @@ enum OperandFlags
    rmw               = 3 * 256,
    addr              = 5 * 256,
    Regaddr           = 7 * 256,
+   EXTRA_BYTE        = BIT(14),
    FP                = BIT(15)
 };
 
@@ -237,10 +238,9 @@ typedef union
 {
    struct
    {
-      unsigned OpType : 5;
-      unsigned RegType : 3;
-      unsigned IdxReg : 3;
-      unsigned IdxType : 5;
+      unsigned OpType   : 8;
+      unsigned IdxReg   : 3;
+      unsigned IdxType  : 5;
    };
 
    struct

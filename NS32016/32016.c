@@ -43,6 +43,10 @@ int gentype[2];
 
 const uint32_t IndexLKUP[8] = { 0x0, 0x1, 0x4, 0x5, 0x8, 0x9, 0xC, 0xD };                    // See Page 2-3 of the manual!
 
+
+#undef TrapTRACE
+#define TrapTRACE PiTRACE
+
 void n32016_ShowRegs(int Option)
 {
    if (Option & BIT(0))
@@ -328,30 +332,20 @@ static void GetGenPhase2(RegLKU gen, int c)
    {
       if (gen.OpType <= R7)
       {
-         switch (gen.RegType)
-         {
-            case Integer:
-            {
-               genaddr[c] = (uint32_t) &r[gen.OpType];
-            }
-            break;
-
-            case SinglePrecision:
+         if (Data.Info.Op[c].Class & 0x80)
+         { 
+            if (Data.Info.Op[c].Size == sz32)
             {
                genaddr[c] = (uint32_t) &FR.fr32[IndexLKUP[gen.OpType]];
             }
-            break;
-
-            case DoublePrecision:
+            else
             {
                genaddr[c] = (uint32_t) &FR.fr64[gen.OpType];
             }
-            break;
-         
-            default:         
-            {
-               PiWARN("Illegal RegType value: %d\n", gen.RegType)
-            }
+         }
+         else
+         {
+            genaddr[c] = (uint32_t) &r[gen.OpType];
          }
 
          gentype[c] = Register;
@@ -1028,6 +1022,13 @@ void n32016_exec()
 
    while (tubecycles > 0)
    {
+#if 0
+      if ((Data.StartAddress >= 0x136) && (Data.StartAddress <= 0x147))
+      {
+         n32016_ShowRegs(BIT(0));
+      }
+#endif
+
       tubecycles -= 8;
       CLEAR_TRAP();
 
@@ -1040,6 +1041,13 @@ void n32016_exec()
       }
 
       BreakPoint(&Data);
+
+#if 0
+      if (Data.CurrentAddress == 0x13C)
+      {
+         printf("Here!\n");
+      }
+#endif
 
       TrapFlags |= Decode(&Data);
       
@@ -1569,15 +1577,6 @@ void n32016_exec()
          }
          break;
 
-         case SUBC:
-         {
-            temp2 = ReadGen(0);
-            temp = ReadGen(1);
-            temp3 = C_FLAG;
-            temp = SubCommon(temp, temp2, temp3);
-         }
-         break;
-
          case ADDR:
          {
             temp = ReadAddress(0);
@@ -1589,6 +1588,15 @@ void n32016_exec()
             temp2 = ReadGen(0);
             temp = ReadGen(1);
             temp &= temp2;
+         }
+         break;
+
+         case SUBC:
+         {
+            temp2 = ReadGen(0);
+            temp = ReadGen(1);
+            temp3 = C_FLAG;
+            temp = SubCommon(temp, temp2, temp3);
          }
          break;
 
@@ -1832,24 +1840,6 @@ void n32016_exec()
          }
          break;
 
-         case LSH:
-         {
-            temp2 = ReadGen(0);
-            temp = ReadGen(1);
-
-            WarnIfShiftInvalid(temp2,  Data.Info.Op[1].Size);
-
-            if (temp2 & 0xE0)
-            {
-               temp2 |= 0xE0;
-               temp >>= ((temp2 ^ 0xFF) + 1);
-            }
-            else
-               temp <<= temp2;
-
-         }
-         break;
-
          case CBIT:
          case CBITI:
          {
@@ -1860,6 +1850,24 @@ void n32016_exec()
             temp = ReadGen(1);
             F_FLAG = TEST(temp & temp2);
             temp &= ~(temp2);
+         }
+         break;
+
+         case LSH:
+         {
+            temp2 = ReadGen(0);
+            temp = ReadGen(1);
+
+            WarnIfShiftInvalid(temp2, Data.Info.Op[1].Size);
+
+            if (temp2 & 0xE0)
+            {
+               temp2 |= 0xE0;
+               temp >>= ((temp2 ^ 0xFF) + 1);
+            }
+            else
+               temp <<= temp2;
+
          }
          break;
 
@@ -2120,6 +2128,14 @@ void n32016_exec()
          }
          break;
 
+         case MUL:
+         {
+            temp = ReadGen(0);
+            temp2 = ReadGen(1);
+            temp *= temp2;
+         }
+         break;
+
          case MEI:
          {
             temp = ReadGen(0); // src
@@ -2129,14 +2145,6 @@ void n32016_exec()
             handle_mei_dei_upper_write(temp64.u64);
             // Allow fallthrough write logic to write the lower half of dst
             temp = (uint32_t) temp64.u64;
-         }
-         break;
-
-         case MUL:
-         {
-            temp = ReadGen(0);
-            temp2 = ReadGen(1);
-            temp *= temp2;
          }
          break;
 
@@ -2377,8 +2385,6 @@ void n32016_exec()
             uint32_t ad = ReadAddress(0);
             temp3 = ReadGen(1);
 
-            // Avoid a "might be uninitialized" warning
-            temp2 = 0;
             switch (Data.Info.Op[0].Size)
             {
                case sz8:
@@ -2395,6 +2401,7 @@ void n32016_exec()
                }
                break;
 
+               default:
                case sz32:
                {
                   temp = read_x32(ad);
@@ -2457,7 +2464,6 @@ void n32016_exec()
                F_FLAG = 1;
                temp = 0;
             }
-
             Data.Info.Op[1].Size = sz8;
          }
          break;
@@ -2467,7 +2473,7 @@ void n32016_exec()
          {
             Temp32Type Src;
             Src.u32 = ReadGen(0);
-            if (Data.Regs[1].RegType == DoublePrecision)
+            if (Data.Info.Op[1].Size == sz64)
             {
                temp64.f64 = (double) Src.s32;
             }
@@ -2506,7 +2512,7 @@ void n32016_exec()
 
          case ROUND:
          {
-            if (Data.Regs[0].RegType == DoublePrecision)
+            if (Data.Info.Op[0].Size == sz64)
             {
                temp64.u64 = ReadGen64(0);
                temp = (int32_t) round(temp64.f64);
@@ -2522,7 +2528,7 @@ void n32016_exec()
 
          case TRUNC:
          {
-            if (Data.Regs[0].RegType == DoublePrecision)
+            if (Data.Info.Op[0].Size == sz64)
             {
                temp64.u64 = ReadGen64(0);
                temp = (int32_t) temp64.f64;
@@ -2544,7 +2550,7 @@ void n32016_exec()
 
          case FLOOR:
          {
-            if (Data.Regs[0].RegType == DoublePrecision)
+            if (Data.Info.Op[0].Size == sz64)
             {
                temp64.u64 = ReadGen64(0);
                temp = (int32_t) floor(temp64.f64);
@@ -2561,7 +2567,7 @@ void n32016_exec()
          // Format 11
          case ADDf:
          {
-            if (Data.Regs[0].RegType == DoublePrecision)
+            if (Data.Info.Op[0].Size == sz64)
             {
                Temp64Type Src;
                Src.u64     = ReadGen64(0);
@@ -2583,7 +2589,7 @@ void n32016_exec()
 
          case MOVf:
          {
-            if (Data.Regs[0].RegType == DoublePrecision)
+            if (Data.Info.Op[0].Size == sz64)
             {
                temp64.u64 = ReadGen64(0);
             }
@@ -2598,7 +2604,7 @@ void n32016_exec()
          {
             L_FLAG = 0;
 
-            if (Data.Regs[0].RegType == DoublePrecision)
+            if (Data.Info.Op[0].Size == sz64)
             {
                Temp64Type Src;
                Src.u64 = ReadGen64(0);
@@ -2622,7 +2628,7 @@ void n32016_exec()
  
          case SUBf:
          {
-            if (Data.Regs[0].RegType == DoublePrecision)
+            if (Data.Info.Op[0].Size == sz64)
             {
                Temp64Type Src;
                Src.u64    = ReadGen64(0);
@@ -2644,7 +2650,7 @@ void n32016_exec()
 
          case NEGf:
          {
-            if (Data.Regs[0].RegType == DoublePrecision)
+            if (Data.Info.Op[0].Size == sz64)
             {
                Temp64Type Src;
                Src.u64 = ReadGen64(0);
@@ -2662,7 +2668,7 @@ void n32016_exec()
 
          case DIVf:
          {
-            if (Data.Regs[0].RegType == DoublePrecision)
+            if (Data.Info.Op[0].Size == sz64)
             {
                Temp64Type Src;
                Src.u64 = ReadGen64(0);
@@ -2684,7 +2690,7 @@ void n32016_exec()
 
          case MULf:
          {
-            if (Data.Regs[0].RegType == DoublePrecision)
+            if (Data.Info.Op[0].Size == sz64)
             {
                Temp64Type Src;
                Src.u64 = ReadGen64(0);
@@ -2706,7 +2712,7 @@ void n32016_exec()
 
          case ABSf:
          {
-            if (Data.Regs[0].RegType == DoublePrecision)
+            if (Data.Info.Op[0].Size == sz64)
             {
                Temp64Type Src;
                Src.u64 = ReadGen64(0);
@@ -2791,16 +2797,14 @@ void n32016_exec()
       }
 
 #if 0
-      switch (Data.Regs[1].RegType)
+      if (Data.Info.Op[0].Class & 0x80)
       {
-         case SinglePrecision:
-         {
+         if (Data.Info.Op[0].Size == sz32)
+         { 
             n32016_ShowRegs(BIT(2));
          }
-         break;
-
-         case DoublePrecision:
-         {
+         else
+         { 
             n32016_ShowRegs(BIT(3));
          }
       }
