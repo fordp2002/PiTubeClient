@@ -251,15 +251,15 @@ const uint32_t OpFlags[InstructionCount] =
    OP(not_used, not_used),
 
    // Format 6
-   OP(read,     rmw),                       // ROT
-   OP(read,     rmw),                       // ASH
-   OP(Regaddr,  rmw),                       // CBIT
-   OP(Regaddr,  rmw),                       // CBITI
+   OP(read | sz8,     rmw),               // ROT (Force 0)
+   OP(read | sz8,     rmw),               // ASH (Force 0)
+   OP(Regaddr,        rmw),               // CBIT
+   OP(Regaddr,        rmw),               // CBITI
 
-   OP(not_used, not_used),
-   OP(read,     rmw),                     // LSH
-   OP(Regaddr,  rmw),                     // SBIT
-   OP(Regaddr,  rmw),                     // SBITI
+   OP(not_used,  not_used),
+   OP(read |sz8,      rmw),               // LSH (Force 0)
+   OP(Regaddr,        rmw),               // SBIT
+   OP(Regaddr,        rmw),               // SBITI
 
    OP(read,     write),                   // NEG
    OP(read,     write),                   // NOT
@@ -294,7 +294,7 @@ const uint32_t OpFlags[InstructionCount] =
 
    // Format 8
    OP(read | sz32, write),                // EXT
-   OP(addr,        write),                // CVTP
+   OP(addr | sz32, write | sz32),         // CVTP
    OP(read,        rmw | sz32),           // INS
    OP(addr,        read),                 // CHECK
 
@@ -561,19 +561,6 @@ uint32_t Decode(DecodeData* This)
          This->Function += ((OpCode >> 10) & 0x0F);
          This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode >> 8);
-
-         // Ordering important here, as getgen uses Operand Size
-         switch (This->Function)
-         {
-            case ROT:
-            case ASH:
-            case LSH:
-            {
-               This->Info.Op[0].Size = sz8;
-            }
-            break;
-         }
-
          getgen(This, OpCode >> 19, 0);
          getgen(This, OpCode >> 14, 1);
       }
@@ -628,13 +615,6 @@ uint32_t Decode(DecodeData* This)
 
          This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode >> 8);
-
-         if (This->Function == CVTP)
-         {
-            This->Info.Op[0].Size = sz32;
-            This->Info.Op[1].Size = sz32;
-         }
-
          getgen(This, OpCode >> 19, 0);
          getgen(This, OpCode >> 14, 1);
       }
