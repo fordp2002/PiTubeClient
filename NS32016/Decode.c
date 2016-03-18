@@ -488,11 +488,11 @@ static void getgen(DecodeData* This, int gen, int c)
 }
 
 
-void Decode(DecodeData* This)
+uint32_t Decode(DecodeData* This)
 {
    This->StartAddress      = This->CurrentAddress;
    uint32_t OpCode         =
-      This->OpCode            = read_x32(This->StartAddress);
+   This->OpCode            = read_x32(This->StartAddress);
    This->Function          = FunctionLookup[This->OpCode & 0xFF];
    This->Info.Whole        = OpFlags[This->Function];
    uint32_t Format         = This->Function >> 4;
@@ -507,7 +507,7 @@ void Decode(DecodeData* This)
       case Format0:
       case Format1:
       {
-         // Nothing here
+         // Nothing here!
       }
       break;
 
@@ -539,7 +539,11 @@ void Decode(DecodeData* This)
          This->Function += ((OpCode >> 10) & 0x0F);
          SetSize(This, OpCode >> 8);
 
-         if (OpCode & BIT(Translation))
+         if (This->Function == SETCFG)
+         {
+            This->Info.Whole = 0;
+         }
+         else if (OpCode & BIT(Translation))
          {
             This->Info.Op[0].Size = sz8;
             This->Info.Op[1].Size = sz8;
@@ -631,12 +635,74 @@ void Decode(DecodeData* This)
       case Format9:
       {
          This->Function += ((OpCode >> 11) & 0x07);
+
+         switch (This->Function)
+         {
+            case MOVif:
+            {
+               This->Info.Op[0].Size = ((OpCode >> 8) & 3) + 1;                        // Source Size (Integer)
+               This->Info.Op[1].Size = GET_F_SIZE(This->OpCode & BIT(10));             // Destination Size (Float/ Double)
+               getgen(This, OpCode >> 19, 0);                                          // Source Operand
+               getgen(This, OpCode >> 14, 1);                                          // Destination Operand
+               This->Regs[1].RegType = GET_PRECISION(OpCode & BIT(10));
+            }
+            break;
+
+            case ROUND:
+            case TRUNC:
+            case FLOOR:
+            {
+               This->Info.Op[0].Size = GET_F_SIZE(OpCode & BIT(10));                   // Source Size (Float/ Double)
+               This->Info.Op[1].Size = ((OpCode >> 8) & 3) + 1;                        // Destination Size (Integer)
+               getgen(This, OpCode >> 19, 0);                                          // Source Operand
+               getgen(This, OpCode >> 14, 1);                                          // Destination Operand
+               This->Regs[0].RegType = GET_PRECISION(OpCode & BIT(10));
+            }
+            break;
+
+            default:
+            {
+               SetSize(This, OpCode >> 8);
+               if (This->Function != SFSR)
+               {
+                  getgen(This, OpCode >> 19, 0);
+                  if (This->Function != MOVif)
+                  {
+                     This->Regs[0].RegType = GET_PRECISION(OpCode & BIT(8));
+                  }
+               }
+
+               if (This->Function != LFSR)
+               {
+                  getgen(This, OpCode >> 14, 1);
+                  This->Regs[0].RegType = GET_PRECISION(OpCode & BIT(8));
+               }
+            }
+            break;
+         }
+
+         if (nscfg.fpu_flag == 0)
+         {
+            return UnknownInstruction;
+         }
       }
       break;
 
       case Format11:
+      case Format12:
       {
          This->Function += ((OpCode >> 10) & 0x0F);
+         This->Info.Op[0].Size =
+         This->Info.Op[1].Size = GET_F_SIZE(OpCode & BIT(8));
+         getgen(This, OpCode >> 19, 0);
+         getgen(This, OpCode >> 14, 1);
+         This->Regs[0].RegType =
+         This->Regs[1].RegType = GET_PRECISION(OpCode & BIT(8));
+
+         if (nscfg.fpu_flag == 0)
+         {
+            return UnknownInstruction;
+         }
       }
       break;
 
@@ -648,8 +714,10 @@ void Decode(DecodeData* This)
 
       default:
       {
-         SET_TRAP(UnknownFormat);
+         return UnknownFormat;
       }
-      break;
+      // No break due to return
    }
+
+   return NoIssue;
 }

@@ -350,4 +350,7 @@ typedef union
 
 extern const uint32_t OpFlags[InstructionCount];
 extern uint8_t Consume_x8(DecodeData* This);
-extern void Decode(DecodeData* This);
+extern uint32_t Decode(DecodeData* This);
+
+#define GET_PRECISION(in) ((in) ? SinglePrecision : DoublePrecision)
+#define GET_F_SIZE(in) ((in) ? sz32 : sz64)

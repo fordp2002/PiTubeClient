@@ -1011,7 +1011,7 @@ uint32_t ReturnCommon(void)
 
 void n32016_exec()
 {
-   uint32_t opcode, WriteIndex;
+   uint32_t opcode;
    uint32_t temp = 0, temp2, temp3;
    Temp64Type temp64;
 
@@ -1032,23 +1032,22 @@ void n32016_exec()
       tubecycles -= 8;
       CLEAR_TRAP();
 
-      WriteIndex           = 1;                                                   // Default to writing operand 0
       Data.Regs[0].Whole   =
       Data.Regs[1].Whole   = 0xFFFF;
-      Data.StartAddress    = Data.CurrentAddress;
-      Data.OpCode          = 
-      opcode               = read_x32(Data.CurrentAddress);
-      Data.Function        = FunctionLookup[opcode & 0xFF];
-      Data.Info.Whole      = OpFlags[Data.Function];
-      uint32_t Format      = Data.Function >> 4;
-
-      if (Data.StartAddress == PR.BPC)
+      if (Data.CurrentAddress == PR.BPC)
       {
          SET_TRAP(BreakPointHit);
          goto DoTrap;
       }
 
       BreakPoint(&Data);
+
+      Data.StartAddress    = Data.CurrentAddress;
+      Data.OpCode          = 
+      opcode               = read_x32(Data.CurrentAddress);
+      Data.Function        = FunctionLookup[opcode & 0xFF];
+      Data.Info.Whole      = OpFlags[Data.Function];
+      uint32_t Format      = Data.Function >> 4;
 
       if (Format < (FormatCount + 1))
       {
@@ -1067,7 +1066,6 @@ void n32016_exec()
          case Format2:
          {
             SET_OP_SIZE(opcode);
-            WriteIndex = 0;
             getgen(opcode >> 11, 0);
          }
          break;
@@ -2961,6 +2959,7 @@ void n32016_exec()
          // No break due to goto
       }
 
+      uint32_t WriteIndex = (Format == Format2) ? 0 : 1;
       uint32_t WriteSize = Data.Info.Op[WriteIndex].Size;
       if (WriteSize && (WriteSize <= sz64))
       {
