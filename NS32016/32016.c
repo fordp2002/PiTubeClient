@@ -1020,7 +1020,6 @@ void n32016_exec()
    uint32_t opcode, WriteIndex;
    uint32_t temp = 0, temp2, temp3;
    Temp64Type temp64;
-   uint32_t Function;
 
    if (tube_irq & 2)
    {
@@ -1058,8 +1057,8 @@ void n32016_exec()
 
       BreakPoint(Data.StartAddress, opcode);
 
-      Function = FunctionLookup[opcode & 0xFF];
-      uint32_t Format   = Function >> 4;
+      Data.Function = FunctionLookup[opcode & 0xFF];
+      uint32_t Format   = Data.Function >> 4;
 
       if (Format < (FormatCount + 1))
       {
@@ -1085,7 +1084,7 @@ void n32016_exec()
 
          case Format3:
          {
-            Function += ((opcode >> 7) & 0x0F);
+            Data.Function += ((opcode >> 7) & 0x0F);
             SET_OP_SIZE(opcode);
             getgen(opcode >> 11, 0);
          }
@@ -1101,9 +1100,9 @@ void n32016_exec()
 
          case Format5:
          {
-            Function += ((opcode >> 10) & 0x0F);
+            Data.Function += ((opcode >> 10) & 0x0F);
             SET_OP_SIZE(opcode >> 8);
-            if (Function == SETCFG)
+            if (Data.Function == SETCFG)
             {
                OpSize.Whole = 0;
             }
@@ -1116,11 +1115,11 @@ void n32016_exec()
 
          case Format6:
          {
-            Function += ((opcode >> 10) & 0x0F);
+            Data.Function += ((opcode >> 10) & 0x0F);
             SET_OP_SIZE(opcode >> 8);
 
             // Ordering important here, as getgen uses Operand Size
-            switch (Function)
+            switch (Data.Function)
             {
                case ROT:
                case ASH:
@@ -1138,7 +1137,7 @@ void n32016_exec()
 
          case Format7:
          {
-            Function += ((opcode >> 10) & 0x0F);
+            Data.Function += ((opcode >> 10) & 0x0F);
             SET_OP_SIZE(opcode >> 8);
 
             getgen(opcode >> 19, 0);
@@ -1156,36 +1155,36 @@ void n32016_exec()
                   {
                      case 0x0C80:
                      {
-                        Function = MOVUS;
+                        Data.Function = MOVUS;
                      }
                      break;
 
                      case 0x1C80:
                      {
-                        Function = MOVSU;
+                        Data.Function = MOVSU;
                      }
                      break;
 
                      default:
                      {
-                        Function = TRAP;
+                        Data.Function = TRAP;
                      }
                      break;
                   }
                }
                else
                {
-                  Function = (opcode & 0x40) ? FFS : INDEX;
+                  Data.Function = (opcode & 0x40) ? FFS : INDEX;
                }
             }
             else
             {
-               Function += ((opcode >> 6) & 3);
+               Data.Function += ((opcode >> 6) & 3);
             }
 
             SET_OP_SIZE(opcode >> 8);
 
-            if (Function == CVTP)
+            if (Data.Function == CVTP)
             {
                SET_OP_SIZE(3);               // 32 Bit
             }
@@ -1202,8 +1201,8 @@ void n32016_exec()
                GOTO_TRAP(UnknownInstruction);
             }
 
-            Function += ((opcode >> 11) & 0x07);
-            switch (Function)
+            Data.Function += ((opcode >> 11) & 0x07);
+            switch (Data.Function)
             {
                case MOVif:
                {
@@ -1232,16 +1231,16 @@ void n32016_exec()
                default:
                {
                   SET_OP_SIZE(opcode >> 8);
-                  if (Function != SFSR)
+                  if (Data.Function != SFSR)
                   {
                      getgen(opcode >> 19, 0);
-                     if (Function != MOVif)
+                     if (Data.Function != MOVif)
                      {
                         Data.Regs[0].RegType = GET_PRECISION(opcode & BIT(8));
                      }
                   }
 
-                  if (Function != LFSR)
+                  if (Data.Function != LFSR)
                   {
                      getgen(opcode >> 14, 1);
                      Data.Regs[0].RegType = GET_PRECISION(opcode & BIT(8));
@@ -1260,7 +1259,7 @@ void n32016_exec()
                GOTO_TRAP(UnknownInstruction);
             }
 
-            Function += ((opcode >> 10) & 0x0F);
+            Data.Function += ((opcode >> 10) & 0x0F);
             WriteSize    =
             OpSize.Op[0] =
             OpSize.Op[1] = GET_F_SIZE(opcode & BIT(8));
@@ -1273,7 +1272,7 @@ void n32016_exec()
 
          case Format14:
          {
-            Function += ((opcode >> 10) & 0x0F);
+            Data.Function += ((opcode >> 10) & 0x0F);
          }
          break;
 
@@ -1288,8 +1287,8 @@ void n32016_exec()
       {
          DecodeData This;
          This.StartAddress = Data.StartAddress;
-         This.Function = Function;
-         This.Info.Whole = OpFlags[Function];
+         This.Function = Data.Function;
+         This.Info.Whole = OpFlags[Data.Function];
          This.Info.Op[0].Size = OpSize.Op[0];
          This.Info.Op[1].Size = OpSize.Op[1];
          This.CurrentAddress = Data.CurrentAddress;
@@ -1302,7 +1301,7 @@ void n32016_exec()
       GetGenPhase2(Data.Regs[0], 0);
       GetGenPhase2(Data.Regs[1], 1);
 
-      if (Function <= RETT)
+      if (Data.Function <= RETT)
       {
          temp = GetDisplacement(&Data);
       }
@@ -1322,7 +1321,7 @@ void n32016_exec()
       ProfileAdd(Function, Data.Regs[0].Whole, Data.Regs[1].Whole);
 #endif
 
-      switch (Function)
+      switch (Data.Function)
       {
          // Format 0 : Branches
 
@@ -1341,7 +1340,7 @@ void n32016_exec()
          case BLT:
          case BGE:
          {
-            if (CheckCondition(Function) == 0)
+            if (CheckCondition(Data.Function) == 0)
             {
                continue;
             }
@@ -2976,7 +2975,7 @@ void n32016_exec()
   
          default:
          {
-            if (Function < TRAP)
+            if (Data.Function < TRAP)
             {
                GOTO_TRAP(UnknownInstruction);
             }
