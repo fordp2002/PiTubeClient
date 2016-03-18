@@ -306,29 +306,10 @@ uint32_t ReadAddress(uint32_t c)
    return genaddr[c];
 }
 
-static void getgen(int gen, int c)
-{
-   gen &= 0x1F;
-   Data.Regs[c].Whole = gen;
-
-   if (gen >= EaPlusRn)
-   {
-      Data.Regs[c].UpperByte = Consume_x8(&Data);
-
-      if (Data.Regs[c].IdxType == Immediate)
-      {
-         SET_TRAP(IllegalImmediate);
-      }
-      else if (Data.Regs[c].IdxType >= EaPlusRn)
-      {
-         SET_TRAP(IllegalDoubleIndexing);
-      }
-   }
-}
-
 static void GetGenPhase2(RegLKU gen, int c)
 {
-   if (gen.Whole < 0xFFFF)                                              // Does this Operand exist ?
+   if (Data.Info.Op[c].Class)
+//   if (gen.Whole < 0xFFFF)                                              // Does this Operand exist ?
    {
       if (gen.OpType <= R7)
       {
@@ -1032,8 +1013,8 @@ void n32016_exec()
       tubecycles -= 8;
       CLEAR_TRAP();
 
-      Data.Regs[0].Whole   =
-      Data.Regs[1].Whole   = 0xFFFF;
+//      Data.Regs[0].Whole   =
+//      Data.Regs[1].Whole   = 0xFFFF;
       if (Data.CurrentAddress == PR.BPC)
       {
          SET_TRAP(BreakPointHit);
@@ -1042,8 +1023,8 @@ void n32016_exec()
 
       BreakPoint(&Data);
 
-#if 0
-      if (Data.CurrentAddress == 0x13C)
+#if 1
+      if (Data.CurrentAddress == 0x259)
       {
          printf("Here!\n");
       }
@@ -2768,10 +2749,12 @@ void n32016_exec()
                   case sz64:  *((uint64_t*)  genaddr[WriteIndex]) = temp64.u64;  break;
                }
 
+#if 1
                if (WriteSize <= sz32)
                {
                   ShowRegisterWrite(Data.Regs[WriteIndex], Truncate(temp, WriteSize));
                }
+#endif
             }
             break;
 

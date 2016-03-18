@@ -220,7 +220,7 @@ const uint32_t OpFlags[InstructionCount] =
    OP(not_used, not_used),
 
    OP(read,     rmw),         // SUB
-   OP(addr,     not_used),    // ADDR
+   OP(addr,     write),       // ADDR
    OP(read,     rmw),         // AND
    OP(not_used, not_used),
 
@@ -702,9 +702,27 @@ uint32_t Decode(DecodeData* This)
       default:
       {
          Trap = UnknownFormat;
+         This->Info.Whole = 0;
       }
       break;
    }
+
+#if 0
+   if (Format >= Format6)
+   {
+      OpCode >>= 8;
+   }
+
+   if (This->Info.Op[0].Class)
+   {
+      getgen(This, OpCode >> 11, 0);
+   }
+
+   if (This->Info.Op[1].Class)
+   {
+      getgen(This, OpCode >> 6, 1);
+   }
+#endif
 
    return Trap;
 }
