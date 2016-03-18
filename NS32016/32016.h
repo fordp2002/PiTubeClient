@@ -257,8 +257,8 @@ extern uint32_t sp[2];
 #define GET_SP()     STACK_P
 
 extern const uint32_t OpSizeLookup[6];
-#define SET_OP_SIZE(in) OpSize.Whole = OpSizeLookup[(in) & 0x03]
-#define SET_FOP_SIZE(in) OpSize.Whole = OpSizeLookup[0x04 | ((in) & 0x01)]
+#define SET_OP_SIZE(in)  Data.Info.Whole = OpSizeLookup[(in) & 0x03]
+#define SET_FOP_SIZE(in) Data.Info.Whole = OpSizeLookup[0x04 | ((in) & 0x01)]
 
 enum StringBits
 {

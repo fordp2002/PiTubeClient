@@ -38,8 +38,6 @@ uint32_t Trace = 0;
 #endif
 
 DecodeData Data;
-OperandSizeType OpSize;
-
 uint32_t genaddr[2];
 int gentype[2];
 
@@ -77,14 +75,12 @@ void n32016_ShowRegs(int Option)
 
 const uint32_t OpSizeLookup[6] =
 {
-   (sz8  << 24) | (sz8  << 16) | (sz8  << 8) | sz8,                // Integer byte
-   (sz16 << 24) | (sz16 << 16) | (sz16 << 8) | sz16,               // Integer word
-   0xFFFFFFFF,                                                     // Illegal
-   (sz32 << 24) | (sz32 << 16) | (sz32 << 8) | sz32,               // Integer double-word
-//   (sz32 << 24) | (sz32 << 16) | (sz32 << 8) | sz32,               // Floating Point Single Precision
-//   (sz64 << 24) | (sz64 << 16) | (sz64 << 8) | sz64                // Floating Point Double Precision
-   (sz32 << 8) | sz32,               // Floating Point Single Precision
-   (sz64 << 8) | sz64                // Floating Point Double Precision
+   (sz8  << 16) | sz8,                // Integer byte
+   (sz16 << 16) | sz16,               // Integer word
+   0,                                 // Illegal
+   (sz32 << 16) | sz32,               // Integer double-word
+   (sz32 << 16) | sz32,                // Floating Point Single Precision
+   (sz64 << 16) | sz64                 // Floating Point Double Precision
 };
 
 void n32016_init()
@@ -229,7 +225,7 @@ uint32_t ReadGen(uint32_t c)
    {
       case Memory:
       {
-         switch (OpSize.Op[c])
+         switch (Data.Info.Op[c].Size)
          {
             case sz8:   return read_x8(genaddr[c]);
             case sz16:  return read_x16(genaddr[c]);
@@ -241,19 +237,19 @@ uint32_t ReadGen(uint32_t c)
       case Register:
       {
          Temp = *(uint32_t*) genaddr[c];
-         return Truncate(Temp, OpSize.Op[c]);
+         return Truncate(Temp, Data.Info.Op[c].Size);
       }
       // No break due to return
      
       case TOS:
       {
-         return PopArbitary(OpSize.Op[c]);
+         return PopArbitary(Data.Info.Op[c].Size);
       }
       // No break due to return
 
       case OpImmediate:
       {
-         return Truncate(genaddr[c], OpSize.Op[c]);
+         return Truncate(genaddr[c], Data.Info.Op[c].Size);
       }
       // No break due to return
    }
@@ -366,7 +362,7 @@ static void GetGenPhase2(RegLKU gen, int c)
       {
          MultiReg temp3;
 
-         if (OpSize.Op[c] == sz64)
+         if (Data.Info.Op[c].Size == sz64)
          {
             temp3.u32 = SWAP32(read_x32(Data.CurrentAddress));
             Immediate64.u64 = (((uint64_t) temp3.u32) << 32);
@@ -377,15 +373,15 @@ static void GetGenPhase2(RegLKU gen, int c)
          {
             // Why can't they just decided on an endian and then stick to it?
             temp3.u32 = SWAP32(read_x32(Data.CurrentAddress));
-            if (OpSize.Op[c] == sz8)
+            if (Data.Info.Op[c].Size == sz8)
                genaddr[c] = temp3.u8;
-            else if (OpSize.Op[c] == sz16)
+            else if (Data.Info.Op[c].Size == sz16)
                genaddr[c] = temp3.u16;
             else
                genaddr[c] = temp3.u32;
          }
 
-         Data.CurrentAddress += OpSize.Op[c];
+         Data.CurrentAddress += Data.Info.Op[c].Size;
          gentype[c] = OpImmediate;
          return;
       }
@@ -580,7 +576,7 @@ static uint32_t AddCommon(uint32_t a, uint32_t b, uint32_t cin)
       //   A is negative, B is negative, sum is positive
       // So the test on the sign bits is (A ^ sum) & (B ^ sum)
       // Note: this test implies sign A == sign B
-      switch (OpSize.Op[0])
+      switch (Data.Info.Op[0].Size)
       {
          case sz8:
             {
@@ -625,7 +621,7 @@ static uint32_t SubCommon(uint32_t a, uint32_t b, uint32_t cin)
       //   A is negative, B is positive, diff is positive
       // So the test on the sign bits is (A ^ B) & (A ^ diff)
       // Note: this test implies sign diff == sign B
-      switch (OpSize.Op[0])
+      switch (Data.Info.Op[0].Size)
       {
          case sz8:
             {
@@ -662,7 +658,7 @@ static uint32_t SubCommon(uint32_t a, uint32_t b, uint32_t cin)
 static uint32_t div_operator(uint32_t a, uint32_t b)
 {
    uint32_t ret = 0;
-   int signmask = BIT(((OpSize.Op[0] - 1) << 3) + 7);
+   int signmask = BIT(((Data.Info.Op[0].Size - 1) << 3) + 7);
    if ((a & signmask) && !(b & signmask))
    {
       // e.g. a = -16; b =  3 ===> a becomes -18
@@ -673,7 +669,7 @@ static uint32_t div_operator(uint32_t a, uint32_t b)
       // e.g. a =  16; b = -3 ===> a becomes 18
       a -= b + 1;
    }
-   switch (OpSize.Op[0])
+   switch (Data.Info.Op[0].Size)
    {
       case sz8:
          ret = (int8_t) a / (int8_t) b;
@@ -737,7 +733,7 @@ static void handle_mei_dei_upper_write(uint64_t result)
    // Writing to an odd register is strictly speaking undefined
    // But BBC Basic relies on a particular behaviour that the NS32016 has in this case
    uint32_t reg_addr = genaddr[1] + ((Data.Regs[1].Whole & 1) ? -4 : 4);
-   switch (OpSize.Op[0])
+   switch (Data.Info.Op[0].Size)
    {
       case sz8:
          temp = (uint8_t) (result >> 8);
@@ -769,11 +765,11 @@ uint32_t CompareCommon(uint32_t src1, uint32_t src2)
 {
    L_FLAG = TEST(src1 > src2);
 
-   if (OpSize.Op[0] == sz8)
+   if (Data.Info.Op[0].Size == sz8)
    {
       N_FLAG = TEST(((int8_t) src1) > ((int8_t) src2));
    }
-   else if (OpSize.Op[0] == sz16)
+   else if (Data.Info.Op[0].Size == sz16)
    {
       N_FLAG = TEST(((int16_t) src1) > ((int16_t) src2));
    }
@@ -793,7 +789,7 @@ uint32_t StringMatching(uint32_t opcode, uint32_t Value)
 
    if (Options)
    {
-      uint32_t Compare = Truncate(r[4], OpSize.Op[0]);
+      uint32_t Compare = Truncate(r[4], Data.Info.Op[0].Size);
 
       if (Options == 1) // While match
       {
@@ -818,7 +814,7 @@ uint32_t StringMatching(uint32_t opcode, uint32_t Value)
 
 void StringRegisterUpdate(uint32_t opcode)
 {
-   uint32_t Size = OpSize.Op[0];
+   uint32_t Size = Data.Info.Op[0].Size;
 
    if (opcode & BIT(Backwards)) // Adjust R1
    {
@@ -924,19 +920,19 @@ uint32_t BitPrefix(void)
 {
    int32_t Offset = ReadGen(0);
    uint32_t bit;
-   SIGN_EXTEND(OpSize.Op[0], Offset);
+   SIGN_EXTEND(Data.Info.Op[0].Size, Offset);
 
    if (gentype[1] == Register)
    {
       // operand 0 is a register
-      OpSize.Op[1] = sz32;
+      Data.Info.Op[1].Size = sz32;
       bit = ((uint32_t) Offset) & 31;
    }
    else
    {
       // operand0 is memory
       genaddr[1] += OffsetDiv8(Offset);
-      OpSize.Op[1] = sz8;
+      Data.Info.Op[1].Size = sz8;
       bit = ((uint32_t) Offset) & 7;
    }
 
@@ -1038,7 +1034,7 @@ void n32016_exec()
       CLEAR_TRAP();
 
       WriteIndex     = 1;                                                   // Default to writing operand 0
-      OpSize.Whole   = 0;
+      Data.Info.Whole = 0;
  
       Data.Regs[0].Whole  =
       Data.Regs[1].Whole  = 0xFFFF;
@@ -1101,7 +1097,7 @@ void n32016_exec()
             SET_OP_SIZE(opcode >> 8);
             if (Data.Function == SETCFG)
             {
-               OpSize.Whole = 0;
+               Data.Info.Whole = 0;
             }
             else if (opcode & BIT(Translation))
             {
@@ -1122,7 +1118,7 @@ void n32016_exec()
                case ASH:
                case LSH:
                {
-                  OpSize.Op[0] = sz8;
+                  Data.Info.Op[0].Size = sz8;
                }
                break;
             }
@@ -1203,8 +1199,8 @@ void n32016_exec()
             {
                case MOVif:
                {
-                  OpSize.Op[0] = ((opcode >> 8) & 3) + 1;                           // Source Size (Integer)
-                  OpSize.Op[1] = GET_F_SIZE(opcode & BIT(10));                      // Destination Size (Float/ Double)
+                  Data.Info.Op[0].Size = ((opcode >> 8) & 3) + 1;                           // Source Size (Integer)
+                  Data.Info.Op[1].Size = GET_F_SIZE(opcode & BIT(10));                      // Destination Size (Float/ Double)
                   getgen(opcode >> 19, 0);                                          // Source Operand
                   getgen(opcode >> 14, 1);                                          // Destination Operand
                   Data.Regs[1].RegType = GET_PRECISION(opcode & BIT(10));
@@ -1215,8 +1211,8 @@ void n32016_exec()
                case TRUNC:
                case FLOOR:
                {
-                  OpSize.Op[0] = GET_F_SIZE(opcode & BIT(10));                      // Source Size (Float/ Double)
-                  OpSize.Op[1] = ((opcode >> 8) & 3) + 1;                           // Destination Size (Integer)
+                  Data.Info.Op[0].Size = GET_F_SIZE(opcode & BIT(10));                      // Source Size (Float/ Double)
+                  Data.Info.Op[1].Size = ((opcode >> 8) & 3) + 1;                           // Destination Size (Integer)
                   getgen(opcode >> 19, 0);                                          // Source Operand
                   getgen(opcode >> 14, 1);                                          // Destination Operand
                   Data.Regs[0].RegType = GET_PRECISION(opcode & BIT(10));
@@ -1255,8 +1251,8 @@ void n32016_exec()
             }
 
             Data.Function += ((opcode >> 10) & 0x0F);
-            OpSize.Op[0] =
-            OpSize.Op[1] = GET_F_SIZE(opcode & BIT(8));
+            Data.Info.Op[0].Size =
+            Data.Info.Op[1].Size = GET_F_SIZE(opcode & BIT(8));
             getgen(opcode >> 19, 0);
             getgen(opcode >> 14, 1);
             Data.Regs[0].RegType =
@@ -1283,8 +1279,8 @@ void n32016_exec()
          This.StartAddress = Data.StartAddress;
          This.Function = Data.Function;
          This.Info.Whole = OpFlags[Data.Function];
-         This.Info.Op[0].Size = OpSize.Op[0];
-         This.Info.Op[1].Size = OpSize.Op[1];
+         This.Info.Op[0].Size = Data.Info.Op[0].Size;
+         This.Info.Op[1].Size = Data.Info.Op[1].Size;
          This.CurrentAddress = Data.CurrentAddress;
          This.OpCode = opcode;
          This.Regs[0] = Data.Regs[0];
@@ -1536,7 +1532,7 @@ void n32016_exec()
             temp2 = (opcode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
             temp = ReadGen(0);
-            SIGN_EXTEND(OpSize.Op[0], temp);
+            SIGN_EXTEND(Data.Info.Op[0].Size, temp);
             CompareCommon(temp2, temp);
             continue;
          }
@@ -1603,7 +1599,7 @@ void n32016_exec()
             temp = ReadGen(0);
             temp += temp2;
             temp2 = GetDisplacement(&Data);
-            if (Truncate(temp, OpSize.Op[0]))
+            if (Truncate(temp, Data.Info.Op[0].Size))
                Data.CurrentAddress = Data.StartAddress + temp2;
          }
          break;
@@ -1689,7 +1685,7 @@ void n32016_exec()
          {
             if (U_FLAG)
             {
-               if (OpSize.Op[0] > sz8)
+               if (Data.Info.Op[0].Size > sz8)
                {
                   GOTO_TRAP(PrivilegedInstruction);
                }
@@ -1713,7 +1709,7 @@ void n32016_exec()
          {
             if (U_FLAG)
             {
-               if (OpSize.Op[0] > sz8)
+               if (Data.Info.Op[0].Size > sz8)
                {
                   GOTO_TRAP(PrivilegedInstruction);
                }
@@ -1728,7 +1724,7 @@ void n32016_exec()
          case ADJSP:
          {
             temp = ReadGen(0);
-            SIGN_EXTEND(OpSize.Op[0], temp);
+            SIGN_EXTEND(Data.Info.Op[0].Size, temp);
             DEC_SP(temp);
             continue;
          }
@@ -1746,7 +1742,7 @@ void n32016_exec()
          case CASE:
          {
             temp = ReadGen(0);
-            SIGN_EXTEND(OpSize.Op[0], temp);
+            SIGN_EXTEND(Data.Info.Op[0].Size, temp);
             Data.CurrentAddress = Data.StartAddress + temp;
             continue;
          }
@@ -1867,7 +1863,7 @@ void n32016_exec()
                continue;
             }
 
-            temp = read_n(r[1], OpSize.Op[0]);
+            temp = read_n(r[1], Data.Info.Op[0].Size);
 
             if (opcode & BIT(Translation))
             {
@@ -1879,7 +1875,7 @@ void n32016_exec()
                continue;
             }
 
-            write_Arbitary(r[2], &temp, OpSize.Op[0]);
+            write_Arbitary(r[2], &temp, Data.Info.Op[0].Size);
 
             StringRegisterUpdate(opcode);
             Data.CurrentAddress = Data.StartAddress; // Not finsihed so come back again!
@@ -1895,7 +1891,7 @@ void n32016_exec()
                continue;
             }
 
-            temp = read_n(r[1], OpSize.Op[0]);
+            temp = read_n(r[1], Data.Info.Op[0].Size);
 
             if (opcode & BIT(Translation))
             {
@@ -1907,7 +1903,7 @@ void n32016_exec()
                continue;
             }
 
-            temp2 = read_n(r[2], OpSize.Op[0]);
+            temp2 = read_n(r[2], Data.Info.Op[0].Size);
 
             if (CompareCommon(temp, temp2) == 0)
             {
@@ -1940,7 +1936,7 @@ void n32016_exec()
                continue;
             }
 
-            temp = read_n(r[1], OpSize.Op[0]);
+            temp = read_n(r[1], Data.Info.Op[0].Size);
 
             if (opcode & BIT(Translation))
             {
@@ -1966,10 +1962,10 @@ void n32016_exec()
             temp2 = ReadGen(0);
             temp  = ReadGen(1);
 
-            WarnIfShiftInvalid(temp2,  OpSize.Op[1]);
+            WarnIfShiftInvalid(temp2,  Data.Info.Op[1].Size);
  
 #if 1
-            temp3 = OpSize.Op[1] * 8;                             // Bit size, compiler will switch to a shift all by itself ;)
+            temp3 = Data.Info.Op[1].Size * 8;                             // Bit size, compiler will switch to a shift all by itself ;)
 
             if (temp2 & 0xE0)
             {
@@ -1980,7 +1976,7 @@ void n32016_exec()
             temp = (temp << temp2) | (temp >> (temp3 - temp2));
 
 #else
-            switch (OpSize.Op[1])
+            switch (Data.Info.Op[1].Size)
             {
                case sz8:
                {
@@ -2027,14 +2023,14 @@ void n32016_exec()
             temp2 = ReadGen(0);
             temp = ReadGen(1);
 
-            WarnIfShiftInvalid(temp2,  OpSize.Op[1]);
+            WarnIfShiftInvalid(temp2,  Data.Info.Op[1].Size);
 
             // Test if the shift is negative (i.e. a right shift)
             if (temp2 & 0xE0)
             {
                temp2 |= 0xE0;
                temp2 = ((temp2 ^ 0xFF) + 1);
-               if (OpSize.Op[1] == sz8)
+               if (Data.Info.Op[1].Size == sz8)
                {
                   // Test if the operand is also negative
                   if (temp & 0x80)
@@ -2047,7 +2043,7 @@ void n32016_exec()
                      temp = (temp >> temp2);
                   }
                }
-               else if (OpSize.Op[1] == sz16)
+               else if (Data.Info.Op[1].Size == sz16)
                {
                   if (temp & 0x8000)
                   {
@@ -2080,7 +2076,7 @@ void n32016_exec()
             temp2 = ReadGen(0);
             temp = ReadGen(1);
 
-            WarnIfShiftInvalid(temp2,  OpSize.Op[1]);
+            WarnIfShiftInvalid(temp2,  Data.Info.Op[1].Size);
 
             if (temp2 & 0xE0)
             {
@@ -2139,7 +2135,7 @@ void n32016_exec()
             uint32_t carry = C_FLAG;
             temp2 = ReadGen(0);
             temp = ReadGen(1);
-            temp = bcd_sub(temp, temp2, OpSize.Op[0], &carry);
+            temp = bcd_sub(temp, temp2, Data.Info.Op[0].Size, &carry);
             C_FLAG = TEST(carry);
             F_FLAG = 0;
          }
@@ -2148,7 +2144,7 @@ void n32016_exec()
          case ABS:
          {
             temp = ReadGen(0);
-            switch (OpSize.Op[0])
+            switch (Data.Info.Op[0].Size)
             {
                case sz8:
                {
@@ -2213,7 +2209,7 @@ void n32016_exec()
             uint32_t carry = C_FLAG;
             temp2 = ReadGen(0);
             temp = ReadGen(1);
-            temp = bcd_add(temp, temp2, OpSize.Op[0], &carry);
+            temp = bcd_add(temp, temp2, Data.Info.Op[0].Size, &carry);
             C_FLAG = TEST(carry);
             F_FLAG = 0;
          }
@@ -2225,8 +2221,8 @@ void n32016_exec()
          {
             uint32_t First    = ReadAddress(0);
             uint32_t Second   = ReadAddress(1);
-            //temp = GetDisplacement(&Data) + OpSize.Op[0];                      // disp of 0 means move 1 byte
-            temp = (GetDisplacement(&Data) & ~(OpSize.Op[0] - 1))  + OpSize.Op[0];
+            //temp = GetDisplacement(&Data) + Data.Info.Op[0].Size;                      // disp of 0 means move 1 byte
+            temp = (GetDisplacement(&Data) & ~(Data.Info.Op[0].Size - 1))  + Data.Info.Op[0].Size;
             while (temp)
             {
                temp2 = read_x8(First);
@@ -2242,7 +2238,7 @@ void n32016_exec()
 
          case CMPM:
          {
-            uint32_t temp4    = OpSize.Op[0];                                 // disp of 0 means move 1 byte/word/dword
+            uint32_t temp4    = Data.Info.Op[0].Size;                                 // disp of 0 means move 1 byte/word/dword
             uint32_t First    = ReadAddress(0);
             uint32_t Second   = ReadAddress(1);
 
@@ -2276,7 +2272,7 @@ void n32016_exec()
             temp = ReadGen(0); // src operand
 
             // The field can be upto 32 bits, and is independent of the opcode i bits
-            OpSize.Op[1] = sz32;
+            Data.Info.Op[1].Size = sz32;
             temp2 = ReadGen(1); // base operand
             for (c = 0; c <= (temp3 & 0x1F); c++)
             {
@@ -2323,43 +2319,43 @@ void n32016_exec()
 
          case MOVXiW:
          {
-            if (OpSize.Op[0] != sz8)
+            if (Data.Info.Op[0].Size != sz8)
             {
                PiWARN("MOVXiW forcing first Operand Size\n");
             }
 
-            OpSize.Op[0] = sz8;
+            Data.Info.Op[0].Size = sz8;
             temp = ReadGen(0);
             SIGN_EXTEND(sz8, temp); // Editor need the useless semicolon
-            OpSize.Op[1] = sz16;
+            Data.Info.Op[1].Size = sz16;
          }
          break;
 
          case MOVZiW:
          {
-            if (OpSize.Op[0] != sz8)
+            if (Data.Info.Op[0].Size != sz8)
             {
                PiWARN("MOVZiW forcing first Operand Size\n");
             }
 
-            OpSize.Op[0] = sz8;
+            Data.Info.Op[0].Size = sz8;
             temp = ReadGen(0);
-            OpSize.Op[1] = sz16;
+            Data.Info.Op[1].Size = sz16;
          }
          break;
 
          case MOVZiD:
          {
             temp = ReadGen(0);
-            OpSize.Op[1] = sz32;
+            Data.Info.Op[1].Size = sz32;
          }
          break;
 
          case MOVXiD:
          {
             temp = ReadGen(0);
-            SIGN_EXTEND(OpSize.Op[0], temp);
-            OpSize.Op[1] = sz32;
+            SIGN_EXTEND(Data.Info.Op[0].Size, temp);
+            Data.Info.Op[1].Size = sz32;
          }
          break;
 
@@ -2385,7 +2381,7 @@ void n32016_exec()
 
          case DEI:
          {
-            int size = OpSize.Op[0] << 3;                      // 8, 16  or 32 
+            int size = Data.Info.Op[0].Size << 3;                      // 8, 16  or 32 
             temp = ReadGen(0); // src
             if (temp == 0)
             {
@@ -2393,7 +2389,7 @@ void n32016_exec()
             }
 
             temp64.u64 = ReadGen64(1); // dst
-            switch (OpSize.Op[0])
+            switch (Data.Info.Op[0].Size)
             {
                case sz8:
                   temp64.u64 = ((temp64.u64 >> 24) & 0xFF00) | (temp64.u64 & 0xFF);
@@ -2423,7 +2419,7 @@ void n32016_exec()
                GOTO_TRAP(DivideByZero);
             }
 
-            switch (OpSize.Op[0])
+            switch (Data.Info.Op[0].Size)
             {
                case sz8:
                   temp = (int8_t) temp2 / (int8_t) temp;
@@ -2449,7 +2445,7 @@ void n32016_exec()
                GOTO_TRAP(DivideByZero);
             }
 
-            switch (OpSize.Op[0])
+            switch (Data.Info.Op[0].Size)
             {
                case sz8:
                   temp = (int8_t) temp2 % (int8_t) temp;
@@ -2532,7 +2528,7 @@ void n32016_exec()
                StartBit = ((uint32_t) Offset) & 7;
             }
 
-            OpSize.Op[0] = sz32;
+            Data.Info.Op[0].Size = sz32;
             uint32_t Source = ReadGen(0);
 
             temp = 0;
@@ -2552,7 +2548,7 @@ void n32016_exec()
             int32_t Base = ReadAddress(0);
 
             temp = (Base * 8) + Offset;
-            OpSize.Op[1] = sz32;
+            Data.Info.Op[1].Size = sz32;
          }
          break;
 
@@ -2599,7 +2595,7 @@ void n32016_exec()
             }
 
             // The field can be upto 32 bits, and is independent of the opcode i bits
-            OpSize.Op[1] = sz32;
+            Data.Info.Op[1].Size = sz32;
             temp = ReadGen(1);
             for (c = 0; (c < Length) && (c + StartBit < 32); c++)
             {
@@ -2622,7 +2618,7 @@ void n32016_exec()
 
             // Avoid a "might be uninitialized" warning
             temp2 = 0;
-            switch (OpSize.Op[0])
+            switch (Data.Info.Op[0].Size)
             {
                case sz8:
                {
@@ -2679,9 +2675,9 @@ void n32016_exec()
 
          case FFS:
          {
-            uint32_t numbits = OpSize.Op[0] << 3;          // number of bits: 8, 16 or 32
+            uint32_t numbits = Data.Info.Op[0].Size << 3;          // number of bits: 8, 16 or 32
             temp2 = ReadGen(0); // base is the variable size operand being scanned
-            OpSize.Op[1] = sz8;
+            Data.Info.Op[1].Size = sz8;
             temp = ReadGen(1); // offset is always 8 bits (also the result)
             // find the first set bit, starting at offset
             for (; temp < numbits && !(temp2 & BIT(temp)); temp++)
@@ -2701,7 +2697,7 @@ void n32016_exec()
                temp = 0;
             }
 
-            OpSize.Op[1] = sz8;
+            Data.Info.Op[1].Size = sz8;
          }
          break;
 
@@ -2977,7 +2973,7 @@ void n32016_exec()
          // No break due to goto
       }
 
-      uint32_t WriteSize = OpSize.Op[WriteIndex];
+      uint32_t WriteSize = Data.Info.Op[WriteIndex].Size;
       if (WriteSize && (WriteSize <= sz64))
       {
          switch (gentype[WriteIndex])
