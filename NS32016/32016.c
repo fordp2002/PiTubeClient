@@ -1011,7 +1011,6 @@ uint32_t ReturnCommon(void)
 
 void n32016_exec()
 {
-   uint32_t opcode;
    uint32_t temp = 0, temp2, temp3;
    Temp64Type temp64;
 
@@ -1042,232 +1041,8 @@ void n32016_exec()
 
       BreakPoint(&Data);
 
-      Data.StartAddress    = Data.CurrentAddress;
-      Data.OpCode          = 
-      opcode               = read_x32(Data.CurrentAddress);
-      Data.Function        = FunctionLookup[opcode & 0xFF];
-      Data.Info.Whole      = OpFlags[Data.Function];
-      uint32_t Format      = Data.Function >> 4;
-
-      if (Format < (FormatCount + 1))
-      {
-         Data.CurrentAddress += FormatSizes[Format];                                        // Add the basic number of bytes for a particular instruction
-      }
-
-      switch (Format)
-      {
-         case Format0:
-         case Format1:
-         {
-            // Nothing here!
-         }
-         break;
-
-         case Format2:
-         {
-            SET_OP_SIZE(opcode);
-            getgen(opcode >> 11, 0);
-         }
-         break;
-
-         case Format3:
-         {
-            Data.Function += ((opcode >> 7) & 0x0F);
-            SET_OP_SIZE(opcode);
-            getgen(opcode >> 11, 0);
-         }
-         break;
-
-         case Format4:
-         {
-            SET_OP_SIZE(opcode);
-            getgen(opcode >> 11, 0);
-            getgen(opcode >> 6, 1);
-         }
-         break;
-
-         case Format5:
-         {
-            Data.Function += ((opcode >> 10) & 0x0F);
-            SET_OP_SIZE(opcode >> 8);
-            if (Data.Function == SETCFG)
-            {
-               Data.Info.Whole = 0;
-            }
-            else if (opcode & BIT(Translation))
-            {
-               SET_OP_SIZE(0);         // 8 Bit
-            }
-         }
-         break;
-
-         case Format6:
-         {
-            Data.Function += ((opcode >> 10) & 0x0F);
-            SET_OP_SIZE(opcode >> 8);
-
-            // Ordering important here, as getgen uses Operand Size
-            switch (Data.Function)
-            {
-               case ROT:
-               case ASH:
-               case LSH:
-               {
-                  Data.Info.Op[0].Size = sz8;
-               }
-               break;
-            }
-
-            getgen(opcode >> 19, 0);
-            getgen(opcode >> 14, 1);
-         }
-         break;
-
-         case Format7:
-         {
-            Data.Function += ((opcode >> 10) & 0x0F);
-            SET_OP_SIZE(opcode >> 8);
-
-            getgen(opcode >> 19, 0);
-            getgen(opcode >> 14, 1);
-         }
-         break;
-
-         case Format8:
-         {
-            if (opcode & 0x400)
-            {
-               if (opcode & 0x80)
-               {
-                  switch (opcode & 0x3CC0)
-                  {
-                     case 0x0C80:
-                     {
-                        Data.Function = MOVUS;
-                     }
-                     break;
-
-                     case 0x1C80:
-                     {
-                        Data.Function = MOVSU;
-                     }
-                     break;
-
-                     default:
-                     {
-                        Data.Function = TRAP;
-                     }
-                     break;
-                  }
-               }
-               else
-               {
-                  Data.Function = (opcode & 0x40) ? FFS : INDEX;
-               }
-            }
-            else
-            {
-               Data.Function += ((opcode >> 6) & 3);
-            }
-
-            SET_OP_SIZE(opcode >> 8);
-
-            if (Data.Function == CVTP)
-            {
-               SET_OP_SIZE(3);               // 32 Bit
-            }
-
-            getgen(opcode >> 19, 0);
-            getgen(opcode >> 14, 1);
-         }
-         break;
-
-         case Format9:
-         {
-            if (nscfg.fpu_flag == 0)
-            {
-               GOTO_TRAP(UnknownInstruction);
-            }
-
-            Data.Function += ((opcode >> 11) & 0x07);
-            switch (Data.Function)
-            {
-               case MOVif:
-               {
-                  Data.Info.Op[0].Size = ((opcode >> 8) & 3) + 1;                           // Source Size (Integer)
-                  Data.Info.Op[1].Size = GET_F_SIZE(opcode & BIT(10));                      // Destination Size (Float/ Double)
-                  getgen(opcode >> 19, 0);                                          // Source Operand
-                  getgen(opcode >> 14, 1);                                          // Destination Operand
-                  Data.Regs[1].RegType = GET_PRECISION(opcode & BIT(10));
-               }
-               break;
-
-               case ROUND:
-               case TRUNC:
-               case FLOOR:
-               {
-                  Data.Info.Op[0].Size = GET_F_SIZE(opcode & BIT(10));                      // Source Size (Float/ Double)
-                  Data.Info.Op[1].Size = ((opcode >> 8) & 3) + 1;                           // Destination Size (Integer)
-                  getgen(opcode >> 19, 0);                                          // Source Operand
-                  getgen(opcode >> 14, 1);                                          // Destination Operand
-                  Data.Regs[0].RegType = GET_PRECISION(opcode & BIT(10));
-               }
-               break;
-
-               default:
-               {
-                  SET_OP_SIZE(opcode >> 8);
-                  if (Data.Function != SFSR)
-                  {
-                     getgen(opcode >> 19, 0);
-                     if (Data.Function != MOVif)
-                     {
-                        Data.Regs[0].RegType = GET_PRECISION(opcode & BIT(8));
-                     }
-                  }
-
-                  if (Data.Function != LFSR)
-                  {
-                     getgen(opcode >> 14, 1);
-                     Data.Regs[0].RegType = GET_PRECISION(opcode & BIT(8));
-                  }
-               }
-               break;
-            }
-         }
-         break;
-
-         case Format11:
-         case Format12:
-         {
-            if (nscfg.fpu_flag == 0)
-            {
-               GOTO_TRAP(UnknownInstruction);
-            }
-
-            Data.Function += ((opcode >> 10) & 0x0F);
-            Data.Info.Op[0].Size =
-            Data.Info.Op[1].Size = GET_F_SIZE(opcode & BIT(8));
-            getgen(opcode >> 19, 0);
-            getgen(opcode >> 14, 1);
-            Data.Regs[0].RegType =
-            Data.Regs[1].RegType = GET_PRECISION(opcode & BIT(8));
-         }
-         break;
-
-         case Format14:
-         {
-            Data.Function += ((opcode >> 10) & 0x0F);
-         }
-         break;
-
-         default:
-         {
-            SET_TRAP(UnknownFormat);
-         }
-         break;
-      }
-
+      TrapFlags |= Decode(&Data);
+      
       if (Trace)
       {
          DecodeData This = Data;                   // Make copy as data is altered
@@ -1505,7 +1280,7 @@ void n32016_exec()
          
          case ADDQ:
          {
-            temp2 = (opcode >> 7) & 0xF;
+            temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
             temp = ReadGen(0);
 
@@ -1515,7 +1290,7 @@ void n32016_exec()
 
          case CMPQ:
          {
-            temp2 = (opcode >> 7) & 0xF;
+            temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
             temp = ReadGen(0);
             SIGN_EXTEND(Data.Info.Op[0].Size, temp);
@@ -1526,7 +1301,7 @@ void n32016_exec()
 
          case SPR:
          {
-            temp2 = (opcode >> 7) & 0xF;
+            temp2 = (Data.OpCode >> 7) & 0xF;
 
             if (U_FLAG)
             {
@@ -1574,13 +1349,13 @@ void n32016_exec()
 
          case Scond:
          {
-            temp = CheckCondition(opcode >> 7);
+            temp = CheckCondition(Data.OpCode >> 7);
          }
          break;
 
          case ACB:
          {
-            temp2 = (opcode >> 7) & 0xF;
+            temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
             temp = ReadGen(0);
             temp += temp2;
@@ -1592,7 +1367,7 @@ void n32016_exec()
 
          case MOVQ:
          {
-            temp = (opcode >> 7) & 0xF;
+            temp = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp);
          }
          break;
@@ -1600,7 +1375,7 @@ void n32016_exec()
          case LPR:
          {
             temp  = ReadGen(0);
-            temp2 = (opcode >> 7) & 0xF;
+            temp2 = (Data.OpCode >> 7) & 0xF;
 
             if (U_FLAG)
             {
@@ -1851,19 +1626,19 @@ void n32016_exec()
 
             temp = read_n(r[1], Data.Info.Op[0].Size);
 
-            if (opcode & BIT(Translation))
+            if (Data.OpCode & BIT(Translation))
             {
                temp = read_x8(r[3] + temp); // Lookup the translation
             }
 
-            if (StringMatching(opcode, temp))
+            if (StringMatching(Data.OpCode, temp))
             {
                continue;
             }
 
             write_Arbitary(r[2], &temp, Data.Info.Op[0].Size);
 
-            StringRegisterUpdate(opcode);
+            StringRegisterUpdate(Data.OpCode);
             Data.CurrentAddress = Data.StartAddress; // Not finsihed so come back again!
             continue;
          }
@@ -1879,12 +1654,12 @@ void n32016_exec()
 
             temp = read_n(r[1], Data.Info.Op[0].Size);
 
-            if (opcode & BIT(Translation))
+            if (Data.OpCode & BIT(Translation))
             {
                temp = read_x8(r[3] + temp);                               // Lookup the translation
             }
 
-            if (StringMatching(opcode, temp))
+            if (StringMatching(Data.OpCode, temp))
             {
                continue;
             }
@@ -1896,7 +1671,7 @@ void n32016_exec()
                continue;
             }
 
-            StringRegisterUpdate(opcode);
+            StringRegisterUpdate(Data.OpCode);
             Data.CurrentAddress = Data.StartAddress;                                               // Not finsihed so come back again!
             continue;
          }
@@ -1909,7 +1684,7 @@ void n32016_exec()
                GOTO_TRAP(PrivilegedInstruction);
             }
 
-            nscfg.lsb = (opcode >> 15);                                  // Only sets the bottom 8 bits of which the lower 4 are used!
+            nscfg.lsb = (Data.OpCode >> 15);                                  // Only sets the bottom 8 bits of which the lower 4 are used!
             continue;
          }
          // No break due to continue
@@ -1924,18 +1699,18 @@ void n32016_exec()
 
             temp = read_n(r[1], Data.Info.Op[0].Size);
 
-            if (opcode & BIT(Translation))
+            if (Data.OpCode & BIT(Translation))
             {
                temp = read_x8(r[3] + temp); // Lookup the translation
                write_x8(r[1], temp); // Write back
             }
 
-            if (StringMatching(opcode, temp))
+            if (StringMatching(Data.OpCode, temp))
             {
                continue;
             }
 
-            StringRegisterUpdate(opcode);
+            StringRegisterUpdate(Data.OpCode);
             Data.CurrentAddress = Data.StartAddress; // Not finsihed so come back again!
             continue;
          }
@@ -2479,7 +2254,7 @@ void n32016_exec()
          case EXT:
          {
             uint32_t c;
-            int32_t  Offset = r[(opcode >> 11) & 7];
+            int32_t  Offset = r[(Data.OpCode >> 11) & 7];
             uint32_t Length = GetDisplacement(&Data);
             uint32_t StartBit;
 
@@ -2530,7 +2305,7 @@ void n32016_exec()
 
          case CVTP:
          {
-            int32_t Offset = r[(opcode >> 11) & 7];
+            int32_t Offset = r[(Data.OpCode >> 11) & 7];
             int32_t Base = ReadAddress(0);
 
             temp = (Base * 8) + Offset;
@@ -2541,7 +2316,7 @@ void n32016_exec()
          case INS:
          {
             uint32_t c;
-            int32_t  Offset = r[(opcode >> 11) & 7];
+            int32_t  Offset = r[(Data.OpCode >> 11) & 7];
             uint32_t Length = GetDisplacement(&Data);
             uint32_t Source = ReadGen(0);
             uint32_t StartBit;
@@ -2632,7 +2407,7 @@ void n32016_exec()
 
             if ((temp >= temp3) && (temp3 >= temp2))
             {
-               r[(opcode >> 11) & 7] = temp3 - temp2;
+               r[(Data.OpCode >> 11) & 7] = temp3 - temp2;
                F_FLAG = 0;
             }
             else
@@ -2650,11 +2425,11 @@ void n32016_exec()
             // 5, 7, 0x13 (19)
             // accum = accum * (length+1) + index
 
-            temp = r[(opcode >> 11) & 7]; // Accum
+            temp = r[(Data.OpCode >> 11) & 7]; // Accum
             temp2 = ReadGen(0) + 1; // (length+1)
             temp3 = ReadGen(1); // index
 
-            r[(opcode >> 11) & 7] = (temp * temp2) + temp3;
+            r[(Data.OpCode >> 11) & 7] = (temp * temp2) + temp3;
             continue;
          }
          // No break due to continue
@@ -2959,7 +2734,7 @@ void n32016_exec()
          // No break due to goto
       }
 
-      uint32_t WriteIndex = (Format == Format2) ? 0 : 1;
+      uint32_t WriteIndex = ((Data.Function >> 4) == Format2) ? 0 : 1;
       uint32_t WriteSize = Data.Info.Op[WriteIndex].Size;
       if (WriteSize && (WriteSize <= sz64))
       {
