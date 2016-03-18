@@ -939,8 +939,6 @@ uint32_t BitPrefix(void)
       OpSize.Op[1] = sz8;
       bit = ((uint32_t) Offset) & 7;
    }
-   
-   WriteSize = OpSize.Op[1];
 
    return BIT(bit);
 }
@@ -1039,7 +1037,6 @@ void n32016_exec()
 
       CLEAR_TRAP();
 
-      WriteSize      = szVaries;                                            // The size a result may be written as
       WriteIndex     = 1;                                                   // Default to writing operand 0
       OpSize.Whole   = 0;
  
@@ -1207,7 +1204,6 @@ void n32016_exec()
                case MOVif:
                {
                   OpSize.Op[0] = ((opcode >> 8) & 3) + 1;                           // Source Size (Integer)
-                  WriteSize    =
                   OpSize.Op[1] = GET_F_SIZE(opcode & BIT(10));                      // Destination Size (Float/ Double)
                   getgen(opcode >> 19, 0);                                          // Source Operand
                   getgen(opcode >> 14, 1);                                          // Destination Operand
@@ -1220,7 +1216,6 @@ void n32016_exec()
                case FLOOR:
                {
                   OpSize.Op[0] = GET_F_SIZE(opcode & BIT(10));                      // Source Size (Float/ Double)
-                  WriteSize =
                   OpSize.Op[1] = ((opcode >> 8) & 3) + 1;                           // Destination Size (Integer)
                   getgen(opcode >> 19, 0);                                          // Source Operand
                   getgen(opcode >> 14, 1);                                          // Destination Operand
@@ -1260,7 +1255,6 @@ void n32016_exec()
             }
 
             Data.Function += ((opcode >> 10) & 0x0F);
-            WriteSize    =
             OpSize.Op[0] =
             OpSize.Op[1] = GET_F_SIZE(opcode & BIT(8));
             getgen(opcode >> 19, 0);
@@ -2293,7 +2287,6 @@ void n32016_exec()
                }
             }
             temp = temp2;
-            WriteSize = OpSize.Op[1];
          }
          break;
 
@@ -2338,7 +2331,7 @@ void n32016_exec()
             OpSize.Op[0] = sz8;
             temp = ReadGen(0);
             SIGN_EXTEND(sz8, temp); // Editor need the useless semicolon
-            WriteSize = sz16;
+            OpSize.Op[1] = sz16;
          }
          break;
 
@@ -2351,14 +2344,14 @@ void n32016_exec()
 
             OpSize.Op[0] = sz8;
             temp = ReadGen(0);
-            WriteSize = sz16;
+            OpSize.Op[1] = sz16;
          }
          break;
 
          case MOVZiD:
          {
             temp = ReadGen(0);
-            WriteSize = sz32;
+            OpSize.Op[1] = sz32;
          }
          break;
 
@@ -2366,7 +2359,7 @@ void n32016_exec()
          {
             temp = ReadGen(0);
             SIGN_EXTEND(OpSize.Op[0], temp);
-            WriteSize = sz32;
+            OpSize.Op[1] = sz32;
          }
          break;
 
@@ -2559,7 +2552,7 @@ void n32016_exec()
             int32_t Base = ReadAddress(0);
 
             temp = (Base * 8) + Offset;
-            WriteSize = sz32;
+            OpSize.Op[1] = sz32;
          }
          break;
 
@@ -2619,7 +2612,6 @@ void n32016_exec()
                   temp &= ~(BIT(c + StartBit));
                }
             }
-            WriteSize = OpSize.Op[1];
          }
          break;
 
@@ -2709,7 +2701,7 @@ void n32016_exec()
                temp = 0;
             }
 
-            WriteSize = sz8;
+            OpSize.Op[1] = sz8;
          }
          break;
 
@@ -2985,6 +2977,7 @@ void n32016_exec()
          // No break due to goto
       }
 
+      uint32_t WriteSize = OpSize.Op[WriteIndex];
       if (WriteSize && (WriteSize <= sz64))
       {
          switch (gentype[WriteIndex])

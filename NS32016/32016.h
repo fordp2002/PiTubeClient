@@ -106,8 +106,6 @@ typedef union
    uint32_t Whole;
 } OperandSizeType;
 
-#define WriteSize OpSize.Op[2]
-
 typedef union
 {
    struct
