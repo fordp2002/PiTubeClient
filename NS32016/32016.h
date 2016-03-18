@@ -331,8 +331,6 @@ extern const uint8_t FormatSizes[FormatCount + 1];
 #define PrintSP(str)
 #endif
 
-#define READ_PC_BYTE() read_x8(Data.CurrentAddress++) 
-
 #define SIGN_EXTEND(size, reg) \
   if ((size == sz8) && (reg & 0x80)) { \
     reg |= 0xFFFFFF00; \

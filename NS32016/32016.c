@@ -313,8 +313,7 @@ static void getgen(int gen, int c)
 
    if (gen >= EaPlusRn)
    {
-      Data.Regs[c].UpperByte = READ_PC_BYTE();
-      //Data.Regs[c].Whole |= READ_PC_BYTE() << 8;
+      Data.Regs[c].UpperByte = Consume_x8(&Data);
 
       if (Data.Regs[c].IdxType == Immediate)
       {
@@ -949,7 +948,7 @@ uint32_t BitPrefix(void)
 void PopRegisters(void)
 {
    int c;
-   int32_t temp = READ_PC_BYTE();
+   int32_t temp = Consume_x8(&Data);
 
    for (c = 0; c < 8; c++)
    {
@@ -1434,7 +1433,7 @@ void n32016_exec()
          case SAVE:
          {
             int c;
-            temp = READ_PC_BYTE();
+            temp = Consume_x8(&Data);
 
             for (c = 0; c < 8; c++)                             // Matching tail with ENTER
             {
@@ -1457,7 +1456,7 @@ void n32016_exec()
          case ENTER:
          {
             int c;
-            temp = READ_PC_BYTE();
+            temp = Consume_x8(&Data);
             temp2 = GetDisplacement(&Data);
             pushd(fp);
             fp = GET_SP();
@@ -2280,7 +2279,7 @@ void n32016_exec()
             uint32_t c;
 
             // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
-            temp3 = READ_PC_BYTE();
+            temp3 = Consume_x8(&Data);
             temp = ReadGen(0); // src operand
 
             // The field can be upto 32 bits, and is independent of the opcode i bits
@@ -2311,7 +2310,7 @@ void n32016_exec()
             }
 
             // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
-            temp3 = READ_PC_BYTE();
+            temp3 = Consume_x8(&Data);
             temp = ReadGen(0);
             temp2 = 0;
             temp >>= (temp3 >> 5); // Shift by offset

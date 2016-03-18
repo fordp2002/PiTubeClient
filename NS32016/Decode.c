@@ -17,6 +17,7 @@
 #include "32016.h"
 #include "Profile.h"
 #include "Trap.h"
+#include "mem32016.h"
 
 uint8_t FunctionLookup[256];
 
@@ -443,3 +444,212 @@ const uint32_t OpFlags[InstructionCount] =
    OP(not_used, not_used)
 };
 #endif
+
+uint8_t Consume_x8(DecodeData* This)
+{
+   return read_x8(This->CurrentAddress++);
+}
+
+void SetSize(DecodeData* This, uint32_t Size)
+{
+   Size &= 3;
+   Size++;
+
+   if (This->Info.Op[0].Size == 0)                                      // Only set size if it has not already been set
+   {
+      This->Info.Op[0].Size = Size;
+   }
+
+   if (This->Info.Op[1].Size == 0)
+   {
+      This->Info.Op[1].Size = Size;
+   }
+}
+
+static void getgen(DecodeData* This, int gen, int c)
+{
+   gen &= 0x1F;
+   This->Regs[c].Whole = gen;
+
+   if (gen >= EaPlusRn)
+   {
+      This->Regs[c].UpperByte = Consume_x8(This);
+
+      if ((This->Regs[c].Whole & 0xF800) == (Immediate << 11))
+      {
+         SET_TRAP(IllegalImmediate);
+      }
+
+      if ((This->Regs[c].Whole & 0xF800) >= (EaPlusRn << 11))
+      {
+         SET_TRAP(IllegalDoubleIndexing);
+      }
+   }
+}
+
+
+void Decode(DecodeData* This)
+{
+   This->StartAddress      = This->CurrentAddress;
+   uint32_t OpCode         =
+      This->OpCode            = read_x32(This->StartAddress);
+   This->Function          = FunctionLookup[This->OpCode & 0xFF];
+   This->Info.Whole        = OpFlags[This->Function];
+   uint32_t Format         = This->Function >> 4;
+
+   if (Format < (FormatCount + 1))
+   {
+      This->CurrentAddress += FormatSizes[Format];                                        // Add the basic number of bytes for a particular instruction
+   }
+
+   switch (Format)
+   {
+      case Format0:
+      case Format1:
+      {
+         // Nothing here
+      }
+      break;
+
+      case Format2:
+      {
+         SetSize(This, OpCode);
+         getgen(This, OpCode >> 11, 0);
+      }
+      break;
+
+      case Format3:
+      {
+         This->Function += ((OpCode >> 7) & 0x0F);
+         SetSize(This, OpCode);
+         getgen(This, OpCode >> 11, 0);
+      }
+      break;
+
+      case Format4:
+      {
+         SetSize(This, OpCode);
+         getgen(This, OpCode >> 11, 0);
+         getgen(This, OpCode >> 6, 1);
+      }
+      break;
+
+      case Format5:
+      {
+         This->Function += ((OpCode >> 10) & 0x0F);
+         SetSize(This, OpCode >> 8);
+
+         if (OpCode & BIT(Translation))
+         {
+            This->Info.Op[0].Size = sz8;
+            This->Info.Op[1].Size = sz8;
+         }
+      }
+      break;
+
+      case Format6:
+      {
+         This->Function += ((OpCode >> 10) & 0x0F);
+         SetSize(This, OpCode >> 8);
+
+         // Ordering important here, as getgen uses Operand Size
+         switch (This->Function)
+         {
+            case ROT:
+            case ASH:
+            case LSH:
+            {
+               This->Info.Op[0].Size = sz8;
+            }
+            break;
+         }
+
+         getgen(This, OpCode >> 19, 0);
+         getgen(This, OpCode >> 14, 1);
+      }
+      break;
+
+      case Format7:
+      {
+         This->Function += ((OpCode >> 10) & 0x0F);
+         SetSize(This, OpCode >> 8);
+         getgen(This, OpCode >> 19, 0);
+         getgen(This, OpCode >> 14, 1);
+      }
+      break;
+
+      case Format8:
+      {
+         if (OpCode & 0x400)
+         {
+            if (OpCode & 0x80)
+            {
+               switch (OpCode & 0x3CC0)
+               {
+                  case 0x0C80:
+                  {
+                     This->Function = MOVUS;
+                  }
+                  break;
+
+                  case 0x1C80:
+                  {
+                     This->Function = MOVSU;
+                  }
+                  break;
+
+                  default:
+                  {
+                     This->Function = TRAP;
+                  }
+                  break;
+               }
+            }
+            else
+            {
+               This->Function = (OpCode & 0x40) ? FFS : INDEX;
+            }
+         }
+         else
+         {
+            This->Function += ((OpCode >> 6) & 3);
+         }
+
+         SetSize(This, OpCode >> 8);
+
+         if (This->Function == CVTP)
+         {
+            This->Info.Op[0].Size = sz32;
+            This->Info.Op[1].Size = sz32;
+         }
+
+         getgen(This, OpCode >> 19, 0);
+         getgen(This, OpCode >> 14, 1);
+      }
+      break;
+
+      case Format9:
+      {
+         This->Function += ((OpCode >> 11) & 0x07);
+      }
+      break;
+
+      case Format11:
+      {
+         This->Function += ((OpCode >> 10) & 0x0F);
+      }
+      break;
+
+      case Format14:
+      {
+         This->Function += ((OpCode >> 10) & 0x0F);
+      }
+      break;
+
+      default:
+      {
+         SET_TRAP(UnknownFormat);
+      }
+      break;
+   }
+}

@@ -349,3 +349,5 @@ typedef union
 
 
 extern const uint32_t OpFlags[InstructionCount];
+extern uint8_t Consume_x8(DecodeData* This);
+extern void Decode(DecodeData* This);
