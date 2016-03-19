@@ -2408,11 +2408,11 @@ void n32016_exec()
          {
             if (Data.Info.Op[0].Size == sz64)
             {
-               Dst.u32 = (int32_t) Src64.f64;
+               Dst.s32 = (int32_t) Src64.f64;
             }
             else
             {
-               Dst.u32 = (int32_t) Src.f32;
+               Dst.s32 = (int32_t) Src.f32;
             }
          }
          break;
@@ -2427,11 +2427,11 @@ void n32016_exec()
          {
             if (Data.Info.Op[0].Size == sz64)
             {
-               Dst.u32 = (int32_t) floor(Src64.f64);
+               Dst.s32 = (int32_t) floor(Src64.f64);
             }
             else
             {
-               Dst.u32 = (int32_t) floorf(Src.f32);
+               Dst.s32 = (int32_t) floorf(Src.f32);
             }
          }
          break;
