@@ -315,15 +315,15 @@ const uint32_t OpFlags[InstructionCount] =
 
 
    // Format 9
-   OP(read, write | FP),      // MOVif
-   OP(not_used, read),        // LFSR
-   OP(read | FP | sz64, write | FP | sz32), // MOVLF
-   OP(read | FP | sz32, write | FP | sz64), // MOVFL
+   OP(read, write | FP),                     // MOVif
+   OP(read | sz32, not_used),                // LFSR
+   OP(read | FP | sz64, write | FP | sz32),  // MOVLF
+   OP(read | FP | sz32, write | FP | sz64),  // MOVFL
 
-   OP(read | FP,  write),     // ROUND
-   OP(read | FP,  write),     // TRUNC
-   OP(not_used,   write),     // SFSR
-   OP(read | FP,  write),     // FLOOR
+   OP(read | FP,  write),                    // ROUND
+   OP(read | FP,  write),                    // TRUNC
+   OP(not_used,   write | sz32),             // SFSR
+   OP(read | FP,  write),                    // FLOOR
 
    OP(not_used, not_used),
    OP(not_used, not_used),
@@ -622,24 +622,6 @@ uint32_t Decode(DecodeData* This)
             {
                This->Info.Op[0].Size = GET_F_SIZE(OpCode & BIT(10));                   // Source Size (Float/ Double)
                This->Info.Op[1].Size = ((OpCode >> 8) & 3) + 1;                        // Destination Size (Integer)
-            }
-            break;
-
-            default:
-            {
-               SetSize(This, OpCode >> 8);
-               if (This->Function != SFSR)
-               {
-                  if (This->Function != MOVif)
-                  {
-                     This->Info.Op[0].Size = GET_F_SIZE(OpCode & BIT(8));               // Source Size (Float/ Double)
-                  }
-               }
-
-               if (This->Function != LFSR)
-               {
-                  This->Info.Op[1].Size = GET_F_SIZE(OpCode & BIT(8));                  // Source Size (Float/ Double)
-               }
             }
             break;
          }
