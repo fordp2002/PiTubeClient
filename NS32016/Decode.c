@@ -552,13 +552,6 @@ uint32_t Decode(DecodeData* This)
       break;
 
       case Format6:
-      {
-         This->Function += ((OpCode >> 10) & 0x0F);
-         This->Info.Whole = OpFlags[This->Function];
-         SetSize(This, OpCode >> 8);
-      }
-      break;
-
       case Format7:
       {
          This->Function += ((OpCode >> 10) & 0x0F);

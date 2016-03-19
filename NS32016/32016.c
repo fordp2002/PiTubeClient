@@ -987,6 +987,7 @@ uint32_t ReturnCommon(void)
 void n32016_exec()
 {
    uint32_t temp = 0, temp2, temp3;
+   Temp32Type Src, Dst;
    Temp64Type temp64;
 
    if (tube_irq & 2)
@@ -1271,9 +1272,9 @@ void n32016_exec()
          {
             temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
-            temp = ReadGen(0);
+            Src.u32 = ReadGen(0);
 
-            temp = AddCommon(temp, temp2, 0);
+            temp = AddCommon(Src.u32, temp2, 0);
          }
          break;
 
@@ -1281,9 +1282,9 @@ void n32016_exec()
          {
             temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
-            temp = ReadGen(0);
-            SIGN_EXTEND(Data.Info.Op[0].Size, temp);
-            CompareCommon(temp2, temp);
+            Src.u32 = ReadGen(0);
+            SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32);
+            CompareCommon(temp2, Src.u32);
             continue;
          }
          // No break due to continue
@@ -1346,8 +1347,8 @@ void n32016_exec()
          {
             temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
-            temp = ReadGen(0);
-            temp += temp2;
+            Src.u32 = ReadGen(0);
+            temp = Src.u32 + temp2;
             temp2 = GetDisplacement(&Data);
             if (Truncate(temp, Data.Info.Op[0].Size))
                Data.CurrentAddress = Data.StartAddress + temp2;
@@ -1363,7 +1364,7 @@ void n32016_exec()
 
          case LPR:
          {
-            temp  = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp2 = (Data.OpCode >> 7) & 0xF;
 
             if (U_FLAG)
@@ -1378,7 +1379,7 @@ void n32016_exec()
             {
                case 0:
                {
-                  psr = (psr & 0xFF00) | (temp & 0xFF);
+                  psr = (psr & 0xFF00) | (Src.u32 & 0xFF);
                }
                break;
 
@@ -1392,19 +1393,19 @@ void n32016_exec()
 
                case 9:
                {
-                  SET_SP(temp);   // Sets the currently selected stack pointer
+                  SET_SP(Src.u32);   // Sets the currently selected stack pointer
                }
                break;
 
                case 11:
                {
-                  sp[1] = temp;   // Sets the user stack pointer
+                  sp[1] = Src.u32;   // Sets the user stack pointer
                }
                break;
 
                default:
                {
-                  PR.Direct[temp2] = temp;
+                  PR.Direct[temp2] = Src.u32;
                }
                break;
             }
@@ -1441,8 +1442,8 @@ void n32016_exec()
                }
             }
  
-            temp = ReadGen(0);
-            psr &= ~temp;
+            Src.u32 = ReadGen(0);
+            psr &= ~Src.u32;
             continue;
          }
          // No break due to continue
@@ -1465,17 +1466,17 @@ void n32016_exec()
                }
             }
             
-            temp = ReadGen(0);
-            psr |= temp;
+            Src.u32 = ReadGen(0);
+            psr |= Src.u32;
             continue;
          }
          // No break due to continue
 
          case ADJSP:
          {
-            temp = ReadGen(0);
-            SIGN_EXTEND(Data.Info.Op[0].Size, temp);
-            DEC_SP(temp);
+            Src.u32 = ReadGen(0);
+            SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32);
+            DEC_SP(Src.u32);
             continue;
          }
          // No break due to continue
@@ -1491,9 +1492,9 @@ void n32016_exec()
 
          case CASE:
          {
-            temp = ReadGen(0);
-            SIGN_EXTEND(Data.Info.Op[0].Size, temp);
-            Data.CurrentAddress = Data.StartAddress + temp;
+            Src.u32 = ReadGen(0);
+            SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32);
+            Data.CurrentAddress = Data.StartAddress + Src.u32;
             continue;
          }
          // No break due to continue
@@ -1502,82 +1503,84 @@ void n32016_exec()
 
          case ADD:
          {
-            temp2 = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp = ReadGen(1);
 
-            temp = AddCommon(temp, temp2, 0);
+            temp = AddCommon(temp, Src.u32, 0);
          }
          break;
 
          case CMP:
          {
-            temp2 = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp = ReadGen(1);
-            CompareCommon(temp2, temp);
+            CompareCommon(Src.u32, temp);
             continue;
          }
          // No break due to continue
 
          case BIC:
          {
-            temp2 = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp = ReadGen(1);
-            temp &= ~temp2;
+            temp &= ~Src.u32;
          }
          break;
 
          case ADDC:
          {
-            temp2 = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp = ReadGen(1);
 
             temp3 = C_FLAG;
-            temp = AddCommon(temp, temp2, temp3);
+            temp = AddCommon(temp, Src.u32, temp3);
          }
          break;
 
          case MOV:
          {
-            temp = ReadGen(0);
+            Src.u32 = ReadGen(0);
+            temp = Src.u32;
          }
          break;
 
          case OR:
          {
-            temp = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp2 = ReadGen(1);
-            temp |= temp2;
+            temp = Src.u32 | temp2;
          }
          break;
 
          case SUB:
          {
-            temp2 = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp = ReadGen(1);
-            temp = SubCommon(temp, temp2, 0);
+            temp = SubCommon(temp, Src.u32, 0);
          }
          break;
 
          case ADDR:
          {
-            temp = ReadAddress(0);
+            Src.u32 = ReadAddress(0);
+            temp = Src.u32;
          }
          break;
 
          case AND:
          {
-            temp2 = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp = ReadGen(1);
-            temp &= temp2;
+            temp &= Src.u32;
          }
          break;
 
          case SUBC:
          {
-            temp2 = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp = ReadGen(1);
             temp3 = C_FLAG;
-            temp = SubCommon(temp, temp2, temp3);
+            temp = SubCommon(temp, Src.u32, temp3);
          }
          break;
 
@@ -1597,9 +1600,9 @@ void n32016_exec()
 
          case XOR:
          {
-            temp = ReadGen(0);
-            temp2 = ReadGen(1);
-            temp ^= temp2;
+            Src.u32 = ReadGen(0);
+            temp = ReadGen(1);
+            temp ^= Src.u32;
          }
          break;
 
@@ -1709,115 +1712,73 @@ void n32016_exec()
 
          case ROT:
          {
-            temp2 = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp  = ReadGen(1);
 
-            WarnIfShiftInvalid(temp2,  Data.Info.Op[1].Size);
+            WarnIfShiftInvalid(Src.u32, Data.Info.Op[1].Size);
  
-#if 1
             temp3 = Data.Info.Op[1].Size * 8;                             // Bit size, compiler will switch to a shift all by itself ;)
 
-            if (temp2 & 0xE0)
+            if (Src.u32 & 0xE0)
             {
-               temp2 |= 0xE0;
-               temp2 = ((temp2 ^ 0xFF) + 1);
-               temp2 = temp3 - temp2;
+               Src.u32 |= 0xE0;
+               Src.u32 = ((Src.u32 ^ 0xFF) + 1);
+               Src.u32 = temp3 - Src.u32;
             }
-            temp = (temp << temp2) | (temp >> (temp3 - temp2));
-
-#else
-            switch (Data.Info.Op[1].Size)
-            {
-               case sz8:
-               {
-                  if (temp2 & 0xE0)
-                  {
-                     temp2 |= 0xE0;
-                     temp2 = ((temp2 ^ 0xFF) + 1);
-                     temp2 = 8 - temp2;
-                  }
-                  temp = (temp << temp2) | (temp >> (8 - temp2));
-               }
-               break;
-
-               case sz16:
-               {
-                  if (temp2 & 0xE0)
-                  {
-                     temp2 |= 0xE0;
-                     temp2 = ((temp2 ^ 0xFF) + 1);
-                     temp2 = 16 - temp2;
-                  }
-                  temp = (temp << temp2) | (temp >> (16 - temp2));
-               }
-               break;
-
-               case sz32:
-               {
-                  if (temp2 & 0xE0)
-                  {
-                     temp2 |= 0xE0;
-                     temp2 = ((temp2 ^ 0xFF) + 1);
-                     temp2 = 32 - temp2;
-                  }
-                  temp = (temp << temp2) | (temp >> (32 - temp2));
-               }
-               break;
-            }
-#endif
+            temp = (temp << Src.u32) | (temp >> (temp3 - Src.u32));
          }
          break;
 
          case ASH:
          {
-            temp2 = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp = ReadGen(1);
 
-            WarnIfShiftInvalid(temp2,  Data.Info.Op[1].Size);
+            WarnIfShiftInvalid(Src.u32, Data.Info.Op[1].Size);
 
             // Test if the shift is negative (i.e. a right shift)
-            if (temp2 & 0xE0)
+            if (Src.u32 & 0xE0)
             {
-               temp2 |= 0xE0;
-               temp2 = ((temp2 ^ 0xFF) + 1);
+               Src.u32 |= 0xE0;
+               Src.u32 = ((Src.u32 ^ 0xFF) + 1);
                if (Data.Info.Op[1].Size == sz8)
                {
                   // Test if the operand is also negative
                   if (temp & 0x80)
                   {
                      // Sign extend in a portable way
-                     temp = (temp >> temp2) | ((0xFF >> temp2) ^ 0xFF);
+                     temp = (temp >> Src.u32) | ((0xFF >> Src.u32) ^ 0xFF);
                   }
                   else
                   {
-                     temp = (temp >> temp2);
+                     temp = (temp >> Src.u32);
                   }
                }
                else if (Data.Info.Op[1].Size == sz16)
                {
                   if (temp & 0x8000)
                   {
-                     temp = (temp >> temp2) | ((0xFFFF >> temp2) ^ 0xFFFF);
+                     temp = (temp >> Src.u32) | ((0xFFFF >> Src.u32) ^ 0xFFFF);
                   }
                   else
                   {
-                     temp = (temp >> temp2);
+                     temp = (temp >> Src.u32);
                   }
                }
                else
                {
                   if (temp & 0x80000000)
                   {
-                     temp = (temp >> temp2) | ((0xFFFFFFFF >> temp2) ^ 0xFFFFFFFF);
+                     temp = (temp >> Src.u32) | ((0xFFFFFFFF >> Src.u32) ^ 0xFFFFFFFF);
                   }
                   else
                   {
-                     temp = (temp >> temp2);
+                     temp = (temp >> Src.u32);
                   }
                }
             }
             else
-               temp <<= temp2;
+               temp <<= Src.u32;
          }
          break;
 
@@ -1836,19 +1797,18 @@ void n32016_exec()
 
          case LSH:
          {
-            temp2 = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp = ReadGen(1);
 
-            WarnIfShiftInvalid(temp2, Data.Info.Op[1].Size);
+            WarnIfShiftInvalid(Src.u32, Data.Info.Op[1].Size);
 
-            if (temp2 & 0xE0)
+            if (Src.u32 & 0xE0)
             {
-               temp2 |= 0xE0;
-               temp >>= ((temp2 ^ 0xFF) + 1);
+               Src.u32 |= 0xE0;
+               temp >>= ((Src.u32 ^ 0xFF) + 1);
             }
             else
-               temp <<= temp2;
-
+               temp <<= Src.u32;
          }
          break;
 
@@ -1868,24 +1828,24 @@ void n32016_exec()
          case NEG:
          {
             temp = 0;
-            temp2 = ReadGen(0);
-            temp = SubCommon(temp, temp2, 0);
+            Src.u32 = ReadGen(0);
+            temp = SubCommon(temp, Src.u32, 0);
          }
          break;
 
          case NOT:
          {
-            temp = ReadGen(0);
-            temp ^= 1;
+            Src.u32 = ReadGen(0);
+            temp = Src.u32 ^ 1;
          }
          break;
 
          case SUBP:
          {
             uint32_t carry = C_FLAG;
-            temp2 = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp = ReadGen(1);
-            temp = bcd_sub(temp, temp2, Data.Info.Op[0].Size, &carry);
+            temp = bcd_sub(temp, Src.u32, Data.Info.Op[0].Size, &carry);
             C_FLAG = TEST(carry);
             F_FLAG = 0;
          }
@@ -1893,7 +1853,8 @@ void n32016_exec()
 
          case ABS:
          {
-            temp = ReadGen(0);
+            Src.u32 = ReadGen(0);
+            temp = Src.u32;
             switch (Data.Info.Op[0].Size)
             {
                case sz8:
@@ -1940,8 +1901,8 @@ void n32016_exec()
 
          case COM:
          {
-            temp = ReadGen(0);
-            temp = ~temp;
+            Src.u32 = ReadGen(0);
+            temp = ~Src.u32;
          }
          break;
 
@@ -1957,9 +1918,9 @@ void n32016_exec()
          case ADDP:
          {
             uint32_t carry = C_FLAG;
-            temp2 = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp = ReadGen(1);
-            temp = bcd_add(temp, temp2, Data.Info.Op[0].Size, &carry);
+            temp = bcd_add(temp, Src.u32, Data.Info.Op[0].Size, &carry);
             C_FLAG = TEST(carry);
             F_FLAG = 0;
          }
@@ -2018,8 +1979,9 @@ void n32016_exec()
             uint32_t c;
 
             // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
+            Src.u32 = ReadGen(0); // src operand
+            temp = Src.u32;
             temp3 = Consume_x8(&Data);
-            temp = ReadGen(0); // src operand
 
             // The field can be upto 32 bits, and is independent of the opcode i bits
             Data.Info.Op[1].Size = sz32;
@@ -2048,8 +2010,9 @@ void n32016_exec()
             }
 
             // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
+            Src.u32 = ReadGen(0);
+            temp = Src.u32;
             temp3 = Consume_x8(&Data);
-            temp = ReadGen(0);
             temp2 = 0;
             temp >>= (temp3 >> 5); // Shift by offset
             temp3 &= 0x1F; // Mask off the lower 5 Bits which are number of bits to extract
@@ -2485,7 +2448,6 @@ void n32016_exec()
 
          case MOVFL:
          {
-            Temp32Type Src;
             Src.u32 = ReadGen(0);
             temp64.f64 = (double) Src.f32;
          }
