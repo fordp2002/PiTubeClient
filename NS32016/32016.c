@@ -1062,6 +1062,28 @@ void n32016_exec()
       ProfileAdd(Function, Data.Regs[0].Whole, Data.Regs[1].Whole);
 #endif
 
+      switch (Data.Info.Op[0].Class & 0x0F)
+      {
+         case read >> 8:
+         case write >> 8:
+         case rmw >> 8:
+         {
+            Src.u32 = ReadGen(0);
+         }
+         break;
+
+         case addr >> 8:
+         {
+            Src.u32 = ReadAddress(0);
+         }
+         break;
+
+         case Regaddr >> 8:
+         {
+            Src.u32 = BitPrefix();
+         }
+      }
+
       switch (Data.Function)
       {
          // Format 0 : Branches
@@ -1272,7 +1294,7 @@ void n32016_exec()
          {
             temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
 
             temp = AddCommon(Src.u32, temp2, 0);
          }
@@ -1282,7 +1304,7 @@ void n32016_exec()
          {
             temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32);
             CompareCommon(temp2, Src.u32);
             continue;
@@ -1347,7 +1369,7 @@ void n32016_exec()
          {
             temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = Src.u32 + temp2;
             temp2 = GetDisplacement(&Data);
             if (Truncate(temp, Data.Info.Op[0].Size))
@@ -1364,7 +1386,7 @@ void n32016_exec()
 
          case LPR:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp2 = (Data.OpCode >> 7) & 0xF;
 
             if (U_FLAG)
@@ -1418,7 +1440,7 @@ void n32016_exec()
 
          case CXPD:
          {
-            Src.u32 = ReadAddress(0);
+            //Src.u32 = ReadAddress(0);
 
             temp = read_x32(Src.u32);   // Matching Tail with CXPD, complier do your stuff
             pushd((CXP_UNUSED_WORD << 16) | mod);
@@ -1442,7 +1464,7 @@ void n32016_exec()
                }
             }
  
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             psr &= ~Src.u32;
             continue;
          }
@@ -1451,7 +1473,7 @@ void n32016_exec()
          case JUMP:
          {
             // JUMP is in access class addr, so ReadGen() cannot be used
-            Src.u32 = ReadAddress(0);
+            //Src.u32 = ReadAddress(0);
             Data.CurrentAddress = Src.u32;
             continue;
          }
@@ -1467,7 +1489,7 @@ void n32016_exec()
                }
             }
             
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             psr |= Src.u32;
             continue;
          }
@@ -1475,7 +1497,7 @@ void n32016_exec()
 
          case ADJSP:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32);
             DEC_SP(Src.u32);
             continue;
@@ -1486,7 +1508,7 @@ void n32016_exec()
          {
             // JSR is in access class addr, so ReadGen() cannot be used
             pushd(Data.CurrentAddress);
-            Src.u32 = ReadAddress(0);
+            //Src.u32 = ReadAddress(0);
             Data.CurrentAddress = Src.u32;
             continue;
          }
@@ -1494,7 +1516,7 @@ void n32016_exec()
 
          case CASE:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32);
             Data.CurrentAddress = Data.StartAddress + Src.u32;
             continue;
@@ -1505,7 +1527,7 @@ void n32016_exec()
 
          case ADD:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
 
             temp = AddCommon(temp, Src.u32, 0);
@@ -1514,7 +1536,7 @@ void n32016_exec()
 
          case CMP:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
             CompareCommon(Src.u32, temp);
             continue;
@@ -1523,7 +1545,7 @@ void n32016_exec()
 
          case BIC:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
             temp &= ~Src.u32;
          }
@@ -1531,7 +1553,7 @@ void n32016_exec()
 
          case ADDC:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
 
             temp3 = C_FLAG;
@@ -1541,14 +1563,14 @@ void n32016_exec()
 
          case MOV:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = Src.u32;
          }
          break;
 
          case OR:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp2 = ReadGen(1);
             temp = Src.u32 | temp2;
          }
@@ -1556,7 +1578,7 @@ void n32016_exec()
 
          case SUB:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
             temp = SubCommon(temp, Src.u32, 0);
          }
@@ -1564,14 +1586,14 @@ void n32016_exec()
 
          case ADDR:
          {
-            Src.u32 = ReadAddress(0);
+            //Src.u32 = ReadAddress(0);
             temp = Src.u32;
          }
          break;
 
          case AND:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
             temp &= Src.u32;
          }
@@ -1579,7 +1601,7 @@ void n32016_exec()
 
          case SUBC:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
             temp3 = C_FLAG;
             temp = SubCommon(temp, Src.u32, temp3);
@@ -1588,7 +1610,7 @@ void n32016_exec()
 
          case TBIT:
          {
-            Src.u32 = BitPrefix();
+            //Src.u32 = BitPrefix();
             if (gentype[1] == TOS)
             {
                PiWARN("TBIT with base==TOS is not yet implemented\n");
@@ -1602,7 +1624,7 @@ void n32016_exec()
 
          case XOR:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
             temp ^= Src.u32;
          }
@@ -1714,7 +1736,7 @@ void n32016_exec()
 
          case ROT:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp  = ReadGen(1);
 
             WarnIfShiftInvalid(Src.u32, Data.Info.Op[1].Size);
@@ -1733,7 +1755,7 @@ void n32016_exec()
 
          case ASH:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
 
             WarnIfShiftInvalid(Src.u32, Data.Info.Op[1].Size);
@@ -1790,7 +1812,7 @@ void n32016_exec()
             // The CBITI instructions, in addition, activate the Interlocked
             // Operation output pin on the CPU, which may be used in multiprocessor systems to
             // interlock accesses to semaphore bits. This aspect is not implemented here.
-            Src.u32 = BitPrefix();
+            //Src.u32 = BitPrefix();
             temp = ReadGen(1);
             F_FLAG = TEST(temp & Src.u32);
             temp &= ~(Src.u32);
@@ -1799,7 +1821,7 @@ void n32016_exec()
 
          case LSH:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
 
             WarnIfShiftInvalid(Src.u32, Data.Info.Op[1].Size);
@@ -1820,7 +1842,7 @@ void n32016_exec()
             // The SBITI instructions, in addition, activate the Interlocked
             // Operation output pin on the CPU, which may be used in multiprocessor systems to
             // interlock accesses to semaphore bits. This aspect is not implemented here.
-            Src.u32 = BitPrefix();
+            //Src.u32 = BitPrefix();
             temp = ReadGen(1);
             F_FLAG = TEST(temp & Src.u32);
             temp |= Src.u32;
@@ -1830,14 +1852,14 @@ void n32016_exec()
          case NEG:
          {
             temp = 0;
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = SubCommon(temp, Src.u32, 0);
          }
          break;
 
          case NOT:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = Src.u32 ^ 1;
          }
          break;
@@ -1845,7 +1867,7 @@ void n32016_exec()
          case SUBP:
          {
             uint32_t carry = C_FLAG;
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
             temp = bcd_sub(temp, Src.u32, Data.Info.Op[0].Size, &carry);
             C_FLAG = TEST(carry);
@@ -1855,7 +1877,7 @@ void n32016_exec()
 
          case ABS:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = Src.u32;
             switch (Data.Info.Op[0].Size)
             {
@@ -1903,14 +1925,14 @@ void n32016_exec()
 
          case COM:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ~Src.u32;
          }
          break;
 
          case IBIT:
          {
-            Src.u32 = BitPrefix();
+            //Src.u32 = BitPrefix();
             temp = ReadGen(1);
             F_FLAG = TEST(temp & Src.u32);
             temp ^= Src.u32;
@@ -1920,7 +1942,7 @@ void n32016_exec()
          case ADDP:
          {
             uint32_t carry = C_FLAG;
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
             temp = bcd_add(temp, Src.u32, Data.Info.Op[0].Size, &carry);
             C_FLAG = TEST(carry);
@@ -1932,7 +1954,7 @@ void n32016_exec()
 
          case MOVM:
          {
-            Src.u32 = ReadAddress(0);
+            //Src.u32 = ReadAddress(0);
             Dst.u32 = ReadAddress(1);
             //temp = GetDisplacement(&Data) + Data.Info.Op[0].Size;                      // disp of 0 means move 1 byte
             temp = (GetDisplacement(&Data) & ~(Data.Info.Op[0].Size - 1))  + Data.Info.Op[0].Size;
@@ -1952,7 +1974,7 @@ void n32016_exec()
          case CMPM:
          {
             uint32_t temp4    = Data.Info.Op[0].Size;                                 // disp of 0 means move 1 byte/word/dword
-            Src.u32 = ReadAddress(0);
+            //Src.u32 = ReadAddress(0);
             Dst.u32 = ReadAddress(1);
 
             temp3 = (GetDisplacement(&Data) / temp4) + 1;
@@ -1981,7 +2003,7 @@ void n32016_exec()
             uint32_t c;
 
             // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
-            Src.u32 = ReadGen(0); // src operand
+            // Src.u32 = ReadGen(0); // src operand
             temp = Src.u32;
             temp3 = Consume_x8(&Data);
 
@@ -2012,7 +2034,7 @@ void n32016_exec()
             }
 
             // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = Src.u32;
             temp3 = Consume_x8(&Data);
             temp2 = 0;
@@ -2034,7 +2056,7 @@ void n32016_exec()
 
          case MOVXiW:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32); // Editor need the useless semicolon
             temp = Src.u32;
          }
@@ -2042,21 +2064,21 @@ void n32016_exec()
 
          case MOVZiW:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = Src.u32;
          }
          break;
 
          case MOVZiD:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = Src.u32;
          }
          break;
 
          case MOVXiD:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32); // Editor need the useless semicolon
             temp = Src.u32;
          }
@@ -2064,7 +2086,7 @@ void n32016_exec()
 
          case MUL:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp = ReadGen(1);
             temp *= Src.u32;
          }
@@ -2072,7 +2094,7 @@ void n32016_exec()
 
          case MEI:
          {
-            Src.u32 = ReadGen(0); // src
+            // Src.u32 = ReadGen(0); // src
             temp64.u64 = ReadGen(1); // dst
             temp64.u64 *= Src.u32;
             // Handle the writing to the upper half of dst locally here
@@ -2085,7 +2107,7 @@ void n32016_exec()
          case DEI:
          {
             int size = Data.Info.Op[0].Size << 3;                      // 8, 16  or 32 
-            Src.u32 = ReadGen(0); // src
+            // Src.u32 = ReadGen(0); // src
             if (Src.u32 == 0)
             {
                GOTO_TRAP(DivideByZero);
@@ -2115,7 +2137,7 @@ void n32016_exec()
 
          case QUO:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp2 = ReadGen(1);
             if (Src.u32 == 0)
             {
@@ -2141,7 +2163,7 @@ void n32016_exec()
 
          case REM:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp2 = ReadGen(1);
             if (Src.u32 == 0)
             {
@@ -2167,7 +2189,7 @@ void n32016_exec()
 
          case MOD:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp2 = ReadGen(1);
             if (Src.u32 == 0)
             {
@@ -2180,7 +2202,7 @@ void n32016_exec()
 
          case DIV:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp2 = ReadGen(1);
             if (Src.u32 == 0)
             {
@@ -2232,7 +2254,7 @@ void n32016_exec()
             }
 
             Data.Info.Op[0].Size = sz32;
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
 
             temp = 0;
             for (c = 0; (c < Length) && (c + StartBit < 32); c++)
@@ -2248,7 +2270,7 @@ void n32016_exec()
          case CVTP:
          {
             int32_t Offset = r[(Data.OpCode >> 11) & 7];
-            Src.u32 = ReadAddress(0);
+            //Src.u32 = ReadAddress(0);
 
             temp = (Src.u32 * 8) + Offset;
             Data.Info.Op[1].Size = sz32;
@@ -2260,7 +2282,7 @@ void n32016_exec()
             uint32_t c;
             int32_t  Offset = r[(Data.OpCode >> 11) & 7];
             uint32_t Length = GetDisplacement(&Data);
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             uint32_t StartBit;
 
             if (Length < 1 || Length > 32)
@@ -2316,7 +2338,7 @@ void n32016_exec()
 
          case CHECK:
          {
-            Src.u32 = ReadAddress(0);
+            //Src.u32 = ReadAddress(0);
             temp3 = ReadGen(1);
 
             switch (Data.Info.Op[0].Size)
@@ -2378,7 +2400,7 @@ void n32016_exec()
          case FFS:
          {
             uint32_t numbits = Data.Info.Op[0].Size << 3;          // number of bits: 8, 16 or 32
-            Src.u32 = ReadGen(0); // base is the variable size operand being scanned
+            // Src.u32 = ReadGen(0); // base is the variable size operand being scanned
             Data.Info.Op[1].Size = sz8;
             temp = ReadGen(1); // offset is always 8 bits (also the result)
             // find the first set bit, starting at offset
@@ -2405,8 +2427,7 @@ void n32016_exec()
          // Format 9
          case MOVif:
          {
-            Temp32Type Src;
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             if (Data.Info.Op[1].Size == sz64)
             {
                temp64.f64 = (double) Src.s32;
@@ -2422,7 +2443,7 @@ void n32016_exec()
 
          case LFSR:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             FSR = Src.u32;
             continue;
          }
@@ -2439,7 +2460,7 @@ void n32016_exec()
 
          case MOVFL:
          {
-            Src.u32 = ReadGen(0);
+            // Src.u32 = ReadGen(0);
             temp64.f64 = (double) Src.f32;
          }
          break;
@@ -2453,7 +2474,7 @@ void n32016_exec()
             }
             else
             {
-               Src.u32 = ReadGen(0);
+               // Src.u32 = ReadGen(0);
                temp = (int32_t) roundf(Src.f32);
             }
          }
@@ -2468,7 +2489,7 @@ void n32016_exec()
             }
             else
             {
-               Src.u32 = ReadGen(0);
+               // Src.u32 = ReadGen(0);
                temp = (int32_t) Src.f32;
             }
          }
@@ -2489,7 +2510,7 @@ void n32016_exec()
             }
             else
             {
-               Src.u32 = ReadGen(0);
+               // Src.u32 = ReadGen(0);
                temp = (int32_t) floorf(Src.f32);
             }
          }
@@ -2508,7 +2529,7 @@ void n32016_exec()
             }
             else
             {
-               Src.u32 = ReadGen(0);
+               // Src.u32 = ReadGen(0);
                Dst.u32 = ReadGen(1);
 
                Dst.f32 += Src.f32;
@@ -2525,7 +2546,7 @@ void n32016_exec()
             }
             else
             {
-               Src.u32 = ReadGen(0);
+               // Src.u32 = ReadGen(0);
                temp = Src.u32;
             }
          }
@@ -2546,7 +2567,7 @@ void n32016_exec()
             }
             else
             {
-               Src.u32 = ReadGen(0);
+               // Src.u32 = ReadGen(0);
                Dst.u32 = ReadGen(1);
 
                Z_FLAG = TEST(Src.f32 == Dst.f32);
@@ -2568,7 +2589,7 @@ void n32016_exec()
             }
             else
             {
-               Src.u32 = ReadGen(0);
+               // Src.u32 = ReadGen(0);
                Dst.u32 = ReadGen(1);
  
                Dst.f32 -= Src.f32;
@@ -2587,7 +2608,7 @@ void n32016_exec()
             }
             else
             {
-               Src.u32 = ReadGen(0);
+               // Src.u32 = ReadGen(0);
                Dst.f32 = -Src.f32;
                temp = Dst.u32;
             }
@@ -2606,7 +2627,7 @@ void n32016_exec()
             }
             else
             {
-               Src.u32 = ReadGen(0);
+               // Src.u32 = ReadGen(0);
                Dst.u32 = ReadGen(1);
 
                Dst.f32 /= Src.f32;
@@ -2627,7 +2648,7 @@ void n32016_exec()
             }
             else
             {
-               Src.u32 = ReadGen(0);
+               // Src.u32 = ReadGen(0);
                Dst.u32 = ReadGen(1);
 
                Dst.f32 *= Src.f32;
