@@ -1418,16 +1418,16 @@ void n32016_exec()
 
          case CXPD:
          {
-            temp2 = ReadAddress(0);
+            Src.u32 = ReadAddress(0);
 
-            temp = read_x32(temp2);   // Matching Tail with CXPD, complier do your stuff
+            temp = read_x32(Src.u32);   // Matching Tail with CXPD, complier do your stuff
             pushd((CXP_UNUSED_WORD << 16) | mod);
             pushd(Data.CurrentAddress);
             mod = temp & 0xFFFF;
             temp3 = temp >> 16;
             sb = read_x32(mod);
-            temp2 = read_x32(mod + 8);
-            Data.CurrentAddress = temp2 + temp3;
+            Src.u32 = read_x32(mod + 8);
+            Data.CurrentAddress = Src.u32 + temp3;
             continue;
          }
          // No break due to continue
@@ -1451,7 +1451,8 @@ void n32016_exec()
          case JUMP:
          {
             // JUMP is in access class addr, so ReadGen() cannot be used
-            Data.CurrentAddress = ReadAddress(0);
+            Src.u32 = ReadAddress(0);
+            Data.CurrentAddress = Src.u32;
             continue;
          }
          // No break due to continue
@@ -1485,7 +1486,8 @@ void n32016_exec()
          {
             // JSR is in access class addr, so ReadGen() cannot be used
             pushd(Data.CurrentAddress);
-            Data.CurrentAddress = ReadAddress(0);
+            Src.u32 = ReadAddress(0);
+            Data.CurrentAddress = Src.u32;
             continue;
          }
          // No break due to continue
@@ -1930,16 +1932,16 @@ void n32016_exec()
 
          case MOVM:
          {
-            uint32_t First    = ReadAddress(0);
-            uint32_t Second   = ReadAddress(1);
+            Src.u32 = ReadAddress(0);
+            Dst.u32 = ReadAddress(1);
             //temp = GetDisplacement(&Data) + Data.Info.Op[0].Size;                      // disp of 0 means move 1 byte
             temp = (GetDisplacement(&Data) & ~(Data.Info.Op[0].Size - 1))  + Data.Info.Op[0].Size;
             while (temp)
             {
-               temp2 = read_x8(First);
-               First++;
-               write_x8(Second, temp2);
-               Second++;
+               temp2 = read_x8(Src.u32);
+               Src.u32++;
+               write_x8(Dst.u32, temp2);
+               Dst.u32++;
                temp--;
             }
 
@@ -1950,24 +1952,24 @@ void n32016_exec()
          case CMPM:
          {
             uint32_t temp4    = Data.Info.Op[0].Size;                                 // disp of 0 means move 1 byte/word/dword
-            uint32_t First    = ReadAddress(0);
-            uint32_t Second   = ReadAddress(1);
+            Src.u32 = ReadAddress(0);
+            Dst.u32 = ReadAddress(1);
 
             temp3 = (GetDisplacement(&Data) / temp4) + 1;
 
             //PiTRACE("CMP Size = %u Count = %u\n", temp4, temp3);
             while (temp3--)
             {
-               temp  = read_n(First, temp4);
-               temp2 = read_n(Second, temp4);
+               temp  = read_n(Src.u32, temp4);
+               temp2 = read_n(Dst.u32, temp4);
  
                if (CompareCommon(temp, temp2) == 0)
                {
                   break;
                }
 
-               First += temp4;
-               Second += temp4;
+               Src.u32 += temp4;
+               Dst.u32 += temp4;
             }
 
             continue;
@@ -2246,9 +2248,9 @@ void n32016_exec()
          case CVTP:
          {
             int32_t Offset = r[(Data.OpCode >> 11) & 7];
-            int32_t Base = ReadAddress(0);
+            Src.u32 = ReadAddress(0);
 
-            temp = (Base * 8) + Offset;
+            temp = (Src.u32 * 8) + Offset;
             Data.Info.Op[1].Size = sz32;
          }
          break;
@@ -2314,30 +2316,30 @@ void n32016_exec()
 
          case CHECK:
          {
-            uint32_t ad = ReadAddress(0);
+            Src.u32 = ReadAddress(0);
             temp3 = ReadGen(1);
 
             switch (Data.Info.Op[0].Size)
             {
                case sz8:
                {
-                  temp = read_x8(ad);
-                  temp2 = read_x8(ad + 1);
+                  temp = read_x8(Src.u32);
+                  temp2 = read_x8(Src.u32 + sz8);
                }
                break;
 
                case sz16:
                {
-                  temp = read_x16(ad);
-                  temp2 = read_x16(ad + 2);
+                  temp = read_x16(Src.u32);
+                  temp2 = read_x16(Src.u32 + sz16);
                }
                break;
 
                default:
                case sz32:
                {
-                  temp = read_x32(ad);
-                  temp2 = read_x32(ad + 4);
+                  temp = read_x32(Src.u32);
+                  temp2 = read_x32(Src.u32 + sz32);
                }
                break;
             }
