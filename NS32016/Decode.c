@@ -285,7 +285,7 @@ const uint32_t OpFlags[InstructionCount] =
    OP(read,     rmw),                     // MUL
    OP(read,     rmw),                     // MEI
    OP(not_used, not_used),
-   OP(read,     rmw),                     // DEI
+   OP(read,     rmw | sz64),              // DEI
 
    OP(read,     rmw),                     // QUO
    OP(read,     rmw),                     // REM
