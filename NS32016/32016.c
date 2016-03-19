@@ -2032,62 +2032,50 @@ void n32016_exec()
 
          case MOVXiW:
          {
-            if (Data.Info.Op[0].Size != sz8)
-            {
-               PiWARN("MOVXiW forcing first Operand Size\n");
-            }
-
-            Data.Info.Op[0].Size = sz8;
-            temp = ReadGen(0);
-            SIGN_EXTEND(sz8, temp); // Editor need the useless semicolon
-            Data.Info.Op[1].Size = sz16;
+            Src.u32 = ReadGen(0);
+            SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32); // Editor need the useless semicolon
+            temp = Src.u32;
          }
          break;
 
          case MOVZiW:
          {
-            if (Data.Info.Op[0].Size != sz8)
-            {
-               PiWARN("MOVZiW forcing first Operand Size\n");
-            }
-
-            Data.Info.Op[0].Size = sz8;
-            temp = ReadGen(0);
-            Data.Info.Op[1].Size = sz16;
+            Src.u32 = ReadGen(0);
+            temp = Src.u32;
          }
          break;
 
          case MOVZiD:
          {
-            temp = ReadGen(0);
-            Data.Info.Op[1].Size = sz32;
+            Src.u32 = ReadGen(0);
+            temp = Src.u32;
          }
          break;
 
          case MOVXiD:
          {
-            temp = ReadGen(0);
-            SIGN_EXTEND(Data.Info.Op[0].Size, temp);
-            Data.Info.Op[1].Size = sz32;
+            Src.u32 = ReadGen(0);
+            SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32); // Editor need the useless semicolon
+            temp = Src.u32;
          }
          break;
 
          case MUL:
          {
-            temp = ReadGen(0);
-            temp2 = ReadGen(1);
-            temp *= temp2;
+            Src.u32 = ReadGen(0);
+            temp = ReadGen(1);
+            temp *= Src.u32;
          }
          break;
 
          case MEI:
          {
-            temp = ReadGen(0); // src
+            Src.u32 = ReadGen(0); // src
             temp64.u64 = ReadGen(1); // dst
-            temp64.u64 *= temp;
+            temp64.u64 *= Src.u32;
             // Handle the writing to the upper half of dst locally here
             handle_mei_dei_upper_write(temp64.u64);
-            // Allow fallthrough write logic to write the lower half of dst
+            // Allow fall through write logic to write the lower half of dst
             temp = (uint32_t) temp64.u64;
          }
          break;
@@ -2095,8 +2083,8 @@ void n32016_exec()
          case DEI:
          {
             int size = Data.Info.Op[0].Size << 3;                      // 8, 16  or 32 
-            temp = ReadGen(0); // src
-            if (temp == 0)
+            Src.u32 = ReadGen(0); // src
+            if (Src.u32 == 0)
             {
                GOTO_TRAP(DivideByZero);
             }
@@ -2114,7 +2102,7 @@ void n32016_exec()
             }
             // PiTRACE("temp = %08x\n", temp);
             // PiTRACE("temp64.u64 = %016" PRIu64 "\n", temp64.u64);
-            temp64.u64 = ((temp64.u64 / temp) << size) | (temp64.u64 % temp);
+            temp64.u64 = ((temp64.u64 / Src.u32) << size) | (temp64.u64 % Src.u32);
             //PiTRACE("result = %016" PRIu64 "\n", temp64.u64);
             // Handle the writing to the upper half of dst locally here
             handle_mei_dei_upper_write(temp64.u64);
@@ -2125,9 +2113,9 @@ void n32016_exec()
 
          case QUO:
          {
-            temp = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp2 = ReadGen(1);
-            if (temp == 0)
+            if (Src.u32 == 0)
             {
                GOTO_TRAP(DivideByZero);
             }
@@ -2135,15 +2123,15 @@ void n32016_exec()
             switch (Data.Info.Op[0].Size)
             {
                case sz8:
-                  temp = (int8_t) temp2 / (int8_t) temp;
+                  temp = (int8_t) temp2 / (int8_t) Src.u32;
                break;
 
                case sz16:
-                  temp = (int16_t) temp2 / (int16_t) temp;
+                  temp = (int16_t) temp2 / (int16_t) Src.u32;
                break;
 
                case sz32:
-                  temp = (int32_t) temp2 / (int32_t) temp;
+                  temp = (int32_t) temp2 / (int32_t) Src.u32;
                break;
             }
          }
@@ -2151,9 +2139,9 @@ void n32016_exec()
 
          case REM:
          {
-            temp = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp2 = ReadGen(1);
-            if (temp == 0)
+            if (Src.u32 == 0)
             {
                GOTO_TRAP(DivideByZero);
             }
@@ -2161,15 +2149,15 @@ void n32016_exec()
             switch (Data.Info.Op[0].Size)
             {
                case sz8:
-                  temp = (int8_t) temp2 % (int8_t) temp;
+                  temp = (int8_t) temp2 % (int8_t) Src.u32;
                break;
 
                case sz16:
-                  temp = (int16_t) temp2 % (int16_t) temp;
+                  temp = (int16_t) temp2 % (int16_t) Src.u32;
                break;
 
                case sz32:
-                  temp = (int32_t) temp2 % (int32_t) temp;
+                  temp = (int32_t) temp2 % (int32_t) Src.u32;
                break;
             }
          }
@@ -2177,27 +2165,27 @@ void n32016_exec()
 
          case MOD:
          {
-            temp = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp2 = ReadGen(1);
-            if (temp == 0)
+            if (Src.u32 == 0)
             {
                GOTO_TRAP(DivideByZero);
             }
 
-            temp = mod_operator(temp2, temp);
+            temp = mod_operator(temp2, Src.u32);
          }
          break;
 
          case DIV:
          {
-            temp = ReadGen(0);
+            Src.u32 = ReadGen(0);
             temp2 = ReadGen(1);
-            if (temp == 0)
+            if (Src.u32 == 0)
             {
                GOTO_TRAP(DivideByZero);
             }
 
-            temp = div_operator(temp2, temp);
+            temp = div_operator(temp2, Src.u32);
          }
          break;
 
@@ -2242,12 +2230,12 @@ void n32016_exec()
             }
 
             Data.Info.Op[0].Size = sz32;
-            uint32_t Source = ReadGen(0);
+            Src.u32 = ReadGen(0);
 
             temp = 0;
             for (c = 0; (c < Length) && (c + StartBit < 32); c++)
             {
-               if (Source & BIT(c + StartBit))
+               if (Src.s32 & BIT(c + StartBit))
                {
                   temp |= BIT(c);
                }
@@ -2270,7 +2258,7 @@ void n32016_exec()
             uint32_t c;
             int32_t  Offset = r[(Data.OpCode >> 11) & 7];
             uint32_t Length = GetDisplacement(&Data);
-            uint32_t Source = ReadGen(0);
+            Src.u32 = ReadGen(0);
             uint32_t StartBit;
 
             if (Length < 1 || Length > 32)
@@ -2312,7 +2300,7 @@ void n32016_exec()
             temp = ReadGen(1);
             for (c = 0; (c < Length) && (c + StartBit < 32); c++)
             {
-               if (Source & BIT(c))
+               if (Src.u32 & BIT(c))
                {
                   temp |= BIT(c + StartBit);
                }
@@ -2377,10 +2365,10 @@ void n32016_exec()
             // accum = accum * (length+1) + index
 
             temp = r[(Data.OpCode >> 11) & 7]; // Accum
-            temp2 = ReadGen(0) + 1; // (length+1)
+            Src.u32 = ReadGen(0) + 1; // (length+1)
             temp3 = ReadGen(1); // index
 
-            r[(Data.OpCode >> 11) & 7] = (temp * temp2) + temp3;
+            r[(Data.OpCode >> 11) & 7] = (temp * Src.u32) + temp3;
             continue;
          }
          // No break due to continue
@@ -2388,11 +2376,11 @@ void n32016_exec()
          case FFS:
          {
             uint32_t numbits = Data.Info.Op[0].Size << 3;          // number of bits: 8, 16 or 32
-            temp2 = ReadGen(0); // base is the variable size operand being scanned
+            Src.u32 = ReadGen(0); // base is the variable size operand being scanned
             Data.Info.Op[1].Size = sz8;
             temp = ReadGen(1); // offset is always 8 bits (also the result)
             // find the first set bit, starting at offset
-            for (; temp < numbits && !(temp2 & BIT(temp)); temp++)
+            for (; temp < numbits && !(Src.u32 & BIT(temp)); temp++)
             {
                continue;                  // No Body!
             }
@@ -2432,7 +2420,8 @@ void n32016_exec()
 
          case LFSR:
          {
-            FSR = ReadGen(0);
+            Src.u32 = ReadGen(0);
+            FSR = Src.u32;
             continue;
          }
          // No break due to continue
@@ -2462,9 +2451,8 @@ void n32016_exec()
             }
             else
             {
-               Temp32Type q;
-               q.u32 = ReadGen(0);
-               temp = (int32_t) roundf(q.f32);
+               Src.u32 = ReadGen(0);
+               temp = (int32_t) roundf(Src.f32);
             }
          }
          break;
@@ -2478,9 +2466,8 @@ void n32016_exec()
             }
             else
             {
-               Temp32Type q;
-               q.u32 = ReadGen(0);
-               temp = (int32_t) q.f32;
+               Src.u32 = ReadGen(0);
+               temp = (int32_t) Src.f32;
             }
          }
          break;
@@ -2500,9 +2487,8 @@ void n32016_exec()
             }
             else
             {
-               Temp32Type q;
-               q.u32 = ReadGen(0);
-               temp = (int32_t) floorf(q.f32);
+               Src.u32 = ReadGen(0);
+               temp = (int32_t) floorf(Src.f32);
             }
          }
          break;
@@ -2520,7 +2506,6 @@ void n32016_exec()
             }
             else
             {
-               Temp32Type Src, Dst;
                Src.u32 = ReadGen(0);
                Dst.u32 = ReadGen(1);
 
@@ -2538,7 +2523,8 @@ void n32016_exec()
             }
             else
             {
-               temp = ReadGen(0);
+               Src.u32 = ReadGen(0);
+               temp = Src.u32;
             }
          }
          break;
@@ -2558,7 +2544,6 @@ void n32016_exec()
             }
             else
             {
-               Temp32Type Src, Dst;
                Src.u32 = ReadGen(0);
                Dst.u32 = ReadGen(1);
 
@@ -2581,7 +2566,6 @@ void n32016_exec()
             }
             else
             {
-               Temp32Type Src, Dst;
                Src.u32 = ReadGen(0);
                Dst.u32 = ReadGen(1);
  
@@ -2601,7 +2585,6 @@ void n32016_exec()
             }
             else
             {
-               Temp32Type Src, Dst;
                Src.u32 = ReadGen(0);
                Dst.f32 = -Src.f32;
                temp = Dst.u32;
@@ -2621,7 +2604,6 @@ void n32016_exec()
             }
             else
             {
-               Temp32Type Src, Dst;
                Src.u32 = ReadGen(0);
                Dst.u32 = ReadGen(1);
 
@@ -2643,7 +2625,6 @@ void n32016_exec()
             }
             else
             {
-               Temp32Type Src, Dst;
                Src.u32 = ReadGen(0);
                Dst.u32 = ReadGen(1);
 
@@ -2663,7 +2644,6 @@ void n32016_exec()
             }
             else
             {
-               Temp32Type Src, Dst;
                Src.u32  = ReadGen(0);
                Dst.f32  = fabsf(Src.f32);
                temp     = Dst.u32;
