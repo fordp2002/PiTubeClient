@@ -299,7 +299,7 @@ const uint32_t OpFlags[InstructionCount] =
    OP(addr,        read),                 // CHECK
 
    OP(read,        read),                 // INDEX
-   OP(read,        rmw),                  // FFS
+   OP(read,        rmw | sz8),            // FFS
    OP(not_used, not_used),                // MOVUS
    OP(not_used, not_used),                // MOVSU
 

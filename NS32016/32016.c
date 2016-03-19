@@ -1525,33 +1525,34 @@ void n32016_exec()
 
          case ADD:
          {
-            temp = ReadGen(1);
+            Dst.u32 = ReadGen(1);
 
-            temp = AddCommon(temp, Src.u32, 0);
+            temp = AddCommon(Dst.u32, Src.u32, 0);
          }
          break;
 
          case CMP:
          {
-            temp = ReadGen(1);
-            CompareCommon(Src.u32, temp);
+            Dst.u32 = ReadGen(1);
+            CompareCommon(Src.u32, Dst.u32);
             continue;
          }
          // No break due to continue
 
          case BIC:
          {
-            temp = ReadGen(1);
-            temp &= ~Src.u32;
+            Dst.u32 = ReadGen(1);
+            Dst.u32 &= ~Src.u32;
+            temp = Dst.u32;
          }
          break;
 
          case ADDC:
          {
-            temp = ReadGen(1);
+            Dst.u32 = ReadGen(1);
 
             temp3 = C_FLAG;
-            temp = AddCommon(temp, Src.u32, temp3);
+            temp = AddCommon(Dst.u32, Src.u32, temp3);
          }
          break;
 
@@ -1563,15 +1564,15 @@ void n32016_exec()
 
          case OR:
          {
-            temp2 = ReadGen(1);
-            temp = Src.u32 | temp2;
+            Dst.u32 = ReadGen(1);
+            temp = Src.u32 | Dst.u32;
          }
          break;
 
          case SUB:
          {
-            temp = ReadGen(1);
-            temp = SubCommon(temp, Src.u32, 0);
+            Dst.u32 = ReadGen(1);
+            temp = SubCommon(Dst.u32, Src.u32, 0);
          }
          break;
 
@@ -1583,16 +1584,16 @@ void n32016_exec()
 
          case AND:
          {
-            temp = ReadGen(1);
-            temp &= Src.u32;
+            Dst.u32 = ReadGen(1);
+            temp = Dst.u32 & Src.u32;
          }
          break;
 
          case SUBC:
          {
-            temp = ReadGen(1);
+            Dst.u32 = ReadGen(1);
             temp3 = C_FLAG;
-            temp = SubCommon(temp, Src.u32, temp3);
+            temp = SubCommon(Dst.u32, Src.u32, temp3);
          }
          break;
 
@@ -1604,16 +1605,16 @@ void n32016_exec()
                PiWARN("TBIT with base==TOS is not yet implemented\n");
                continue; // with next instruction
             }
-            temp = ReadGen(1);
-            F_FLAG = TEST(temp & Src.u32);
+            Dst.u32 = ReadGen(1);
+            F_FLAG = TEST(Dst.u32 & Src.u32);
             continue;
          }
          // No break due to continue
 
          case XOR:
          {
-            temp = ReadGen(1);
-            temp ^= Src.u32;
+            Dst.u32 = ReadGen(1);
+            temp = Dst.u32 ^ Src.u32;
          }
          break;
 
@@ -1723,7 +1724,7 @@ void n32016_exec()
 
          case ROT:
          {
-            temp  = ReadGen(1);
+            Dst.u32 = ReadGen(1);
 
             WarnIfShiftInvalid(Src.u32, Data.Info.Op[1].Size);
  
@@ -1735,13 +1736,14 @@ void n32016_exec()
                Src.u32 = ((Src.u32 ^ 0xFF) + 1);
                Src.u32 = temp3 - Src.u32;
             }
-            temp = (temp << Src.u32) | (temp >> (temp3 - Src.u32));
+            temp = (Dst.u32 << Src.u32) | (Dst.u32 >> (temp3 - Src.u32));
          }
          break;
 
          case ASH:
          {
-            temp = ReadGen(1);
+            Dst.u32 = ReadGen(1);
+            temp = Dst.u32;
 
             WarnIfShiftInvalid(Src.u32, Data.Info.Op[1].Size);
 
@@ -1798,15 +1800,16 @@ void n32016_exec()
             // Operation output pin on the CPU, which may be used in multiprocessor systems to
             // interlock accesses to semaphore bits. This aspect is not implemented here.
             //Src.u32 = BitPrefix();
-            temp = ReadGen(1);
-            F_FLAG = TEST(temp & Src.u32);
-            temp &= ~(Src.u32);
+            Dst.u32 = ReadGen(1);
+            F_FLAG = TEST(Dst.u32 & Src.u32);
+            temp = Dst.u32 & ~(Src.u32);
          }
          break;
 
          case LSH:
          {
-            temp = ReadGen(1);
+            Dst.u32 = ReadGen(1);
+            temp = Dst.u32;
 
             WarnIfShiftInvalid(Src.u32, Data.Info.Op[1].Size);
 
@@ -1827,9 +1830,9 @@ void n32016_exec()
             // Operation output pin on the CPU, which may be used in multiprocessor systems to
             // interlock accesses to semaphore bits. This aspect is not implemented here.
             //Src.u32 = BitPrefix();
-            temp = ReadGen(1);
-            F_FLAG = TEST(temp & Src.u32);
-            temp |= Src.u32;
+            Dst.u32 = ReadGen(1);
+            F_FLAG = TEST(Dst.u32 & Src.u32);
+            temp = Dst.u32 | Src.u32;
          }
          break;
 
@@ -1849,8 +1852,8 @@ void n32016_exec()
          case SUBP:
          {
             uint32_t carry = C_FLAG;
-            temp = ReadGen(1);
-            temp = bcd_sub(temp, Src.u32, Data.Info.Op[0].Size, &carry);
+            Dst.u32 = ReadGen(1);
+            temp = bcd_sub(Dst.u32, Src.u32, Data.Info.Op[0].Size, &carry);
             C_FLAG = TEST(carry);
             F_FLAG = 0;
          }
@@ -1912,17 +1915,17 @@ void n32016_exec()
          case IBIT:
          {
             //Src.u32 = BitPrefix();
-            temp = ReadGen(1);
-            F_FLAG = TEST(temp & Src.u32);
-            temp ^= Src.u32;
+            Dst.u32 = ReadGen(1);
+            F_FLAG = TEST(Dst.u32 & Src.u32);
+            temp = Dst.u32 ^ Src.u32;
          }
          break;
 
          case ADDP:
          {
             uint32_t carry = C_FLAG;
-            temp = ReadGen(1);
-            temp = bcd_add(temp, Src.u32, Data.Info.Op[0].Size, &carry);
+            Dst.u32 = ReadGen(1);
+            temp = bcd_add(Dst.u32, Src.u32, Data.Info.Op[0].Size, &carry);
             C_FLAG = TEST(carry);
             F_FLAG = 0;
          }
@@ -1986,16 +1989,16 @@ void n32016_exec()
 
             // The field can be upto 32 bits, and is independent of the opcode i bits
             Data.Info.Op[1].Size = sz32;
-            temp2 = ReadGen(1); // base operand
+            Dst.u32 = ReadGen(1); // base operand
             for (c = 0; c <= (temp3 & 0x1F); c++)
             {
-               temp2 &= ~(BIT((c + (temp3 >> 5)) & 31));
+               Dst.u32 &= ~(BIT((c + (temp3 >> 5)) & 31));
                if (temp & BIT(c))
                {
-                  temp2 |= BIT((c + (temp3 >> 5)) & 31);
+                  Dst.u32 |= BIT((c + (temp3 >> 5)) & 31);
                }
             }
-            temp = temp2;
+            temp = Dst.u32;
          }
          break;
 
@@ -2058,14 +2061,15 @@ void n32016_exec()
 
          case MUL:
          {
-            temp = ReadGen(1);
-            temp *= Src.u32;
+            Dst.u32 = ReadGen(1);
+            temp = Dst.u32 * Src.u32;
          }
          break;
 
          case MEI:
          {
-            Dst64.u64 = ReadGen(1); // dst
+            Dst.u32 = ReadGen(1); // dst
+            Dst64.u64 = Dst.u32;
             Dst64.u64 *= Src.u32;
             // Handle the writing to the upper half of dst locally here
             handle_mei_dei_upper_write(Dst64.u64);
@@ -2106,7 +2110,7 @@ void n32016_exec()
 
          case QUO:
          {
-            temp2 = ReadGen(1);
+            Dst.u32 = ReadGen(1);
             if (Src.u32 == 0)
             {
                GOTO_TRAP(DivideByZero);
@@ -2115,15 +2119,15 @@ void n32016_exec()
             switch (Data.Info.Op[0].Size)
             {
                case sz8:
-                  temp = (int8_t) temp2 / (int8_t) Src.u32;
+                  temp = (int8_t) Dst.u32 / (int8_t) Src.u32;
                break;
 
                case sz16:
-                  temp = (int16_t) temp2 / (int16_t) Src.u32;
+                  temp = (int16_t) Dst.u32 / (int16_t) Src.u32;
                break;
 
                case sz32:
-                  temp = (int32_t) temp2 / (int32_t) Src.u32;
+                  temp = (int32_t) Dst.u32 / (int32_t) Src.u32;
                break;
             }
          }
@@ -2131,7 +2135,7 @@ void n32016_exec()
 
          case REM:
          {
-            temp2 = ReadGen(1);
+            Dst.u32 = ReadGen(1);
             if (Src.u32 == 0)
             {
                GOTO_TRAP(DivideByZero);
@@ -2140,15 +2144,15 @@ void n32016_exec()
             switch (Data.Info.Op[0].Size)
             {
                case sz8:
-                  temp = (int8_t) temp2 % (int8_t) Src.u32;
+                  temp = (int8_t) Dst.u32 % (int8_t) Src.u32;
                break;
 
                case sz16:
-                  temp = (int16_t) temp2 % (int16_t) Src.u32;
+                  temp = (int16_t) Dst.u32 % (int16_t) Src.u32;
                break;
 
                case sz32:
-                  temp = (int32_t) temp2 % (int32_t) Src.u32;
+                  temp = (int32_t) Dst.u32 % (int32_t) Src.u32;
                break;
             }
          }
@@ -2156,25 +2160,25 @@ void n32016_exec()
 
          case MOD:
          {
-            temp2 = ReadGen(1);
+            Dst.u32 = ReadGen(1);
             if (Src.u32 == 0)
             {
                GOTO_TRAP(DivideByZero);
             }
 
-            temp = mod_operator(temp2, Src.u32);
+            temp = mod_operator(Dst.u32, Src.u32);
          }
          break;
 
          case DIV:
          {
-            temp2 = ReadGen(1);
+            Dst.u32 = ReadGen(1);
             if (Src.u32 == 0)
             {
                GOTO_TRAP(DivideByZero);
             }
 
-            temp = div_operator(temp2, Src.u32);
+            temp = div_operator(Dst.u32, Src.u32);
          }
          break;
 
@@ -2284,7 +2288,8 @@ void n32016_exec()
 
             // The field can be upto 32 bits, and is independent of the opcode i bits
             Data.Info.Op[1].Size = sz32;
-            temp = ReadGen(1);
+            Dst.u32 = ReadGen(1);
+            temp = Dst.u32;
             for (c = 0; (c < Length) && (c + StartBit < 32); c++)
             {
                if (Src.u32 & BIT(c))
@@ -2302,7 +2307,7 @@ void n32016_exec()
          case CHECK:
          {
             //Src.u32 = ReadAddress(0);
-            temp3 = ReadGen(1);
+            Dst.u32 = ReadGen(1);
 
             switch (Data.Info.Op[0].Size)
             {
@@ -2331,9 +2336,9 @@ void n32016_exec()
 
             //PiTRACE("Reg = %u Bounds [%u - %u] Index = %u", 0, temp, temp2, temp3);
 
-            if ((temp >= temp3) && (temp3 >= temp2))
+            if ((temp >= Dst.u32) && (Dst.u32 >= temp2))
             {
-               r[(Data.OpCode >> 11) & 7] = temp3 - temp2;
+               r[(Data.OpCode >> 11) & 7] = Dst.u32 - temp2;
                F_FLAG = 0;
             }
             else
@@ -2353,9 +2358,9 @@ void n32016_exec()
 
             temp = r[(Data.OpCode >> 11) & 7];  // Accum
             Src.u32 += 1;                       // (length+1)
-            temp3 = ReadGen(1);                 // index
+            Dst.u32 = ReadGen(1);                 // index
 
-            r[(Data.OpCode >> 11) & 7] = (temp * Src.u32) + temp3;
+            r[(Data.OpCode >> 11) & 7] = (temp * Src.u32) + Dst.u32;
             continue;
          }
          // No break due to continue
@@ -2364,8 +2369,9 @@ void n32016_exec()
          {
             uint32_t numbits = Data.Info.Op[0].Size << 3;          // number of bits: 8, 16 or 32
             // Src.u32 is the variable size operand being scanned
-            Data.Info.Op[1].Size = sz8;
-            temp = ReadGen(1); // offset is always 8 bits (also the result)
+
+            Dst.u32 = ReadGen(1); // offset is always 8 bits (also the result)
+            temp = Dst.u32;
             // find the first set bit, starting at offset
             for (; temp < numbits && !(Src.u32 & BIT(temp)); temp++)
             {
@@ -2383,7 +2389,6 @@ void n32016_exec()
                F_FLAG = 1;
                temp = 0;
             }
-            Data.Info.Op[1].Size = sz8;
          }
          break;
 
