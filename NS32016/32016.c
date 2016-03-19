@@ -1588,14 +1588,14 @@ void n32016_exec()
 
          case TBIT:
          {
-            temp2 = BitPrefix();
+            Src.u32 = BitPrefix();
             if (gentype[1] == TOS)
             {
                PiWARN("TBIT with base==TOS is not yet implemented\n");
                continue; // with next instruction
             }
             temp = ReadGen(1);
-            F_FLAG = TEST(temp & temp2);
+            F_FLAG = TEST(temp & Src.u32);
             continue;
          }
          // No break due to continue
@@ -1790,10 +1790,10 @@ void n32016_exec()
             // The CBITI instructions, in addition, activate the Interlocked
             // Operation output pin on the CPU, which may be used in multiprocessor systems to
             // interlock accesses to semaphore bits. This aspect is not implemented here.
-            temp2 = BitPrefix();
+            Src.u32 = BitPrefix();
             temp = ReadGen(1);
-            F_FLAG = TEST(temp & temp2);
-            temp &= ~(temp2);
+            F_FLAG = TEST(temp & Src.u32);
+            temp &= ~(Src.u32);
          }
          break;
 
@@ -1820,10 +1820,10 @@ void n32016_exec()
             // The SBITI instructions, in addition, activate the Interlocked
             // Operation output pin on the CPU, which may be used in multiprocessor systems to
             // interlock accesses to semaphore bits. This aspect is not implemented here.
-            temp2 = BitPrefix();
+            Src.u32 = BitPrefix();
             temp = ReadGen(1);
-            F_FLAG = TEST(temp & temp2);
-            temp |= temp2;
+            F_FLAG = TEST(temp & Src.u32);
+            temp |= Src.u32;
          }
          break;
 
@@ -1910,10 +1910,10 @@ void n32016_exec()
 
          case IBIT:
          {
-            temp2 = BitPrefix();
+            Src.u32 = BitPrefix();
             temp = ReadGen(1);
-            F_FLAG = TEST(temp & temp2);
-            temp ^= temp2;
+            F_FLAG = TEST(temp & Src.u32);
+            temp ^= Src.u32;
          }
          break;
 
