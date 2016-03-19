@@ -316,7 +316,7 @@ const uint32_t OpFlags[InstructionCount] =
 
    // Format 9
    OP(read, write | FP),      // MOVif
-   OP(read, not_used),        // LFSR
+   OP(not_used, read),        // LFSR
    OP(read | FP, write | FP), // MOVLF
    OP(read | FP, write | FP), // MOVFL
 
@@ -516,7 +516,6 @@ uint32_t Decode(DecodeData* This)
       {
          This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode);
-         getgen(This, OpCode >> 11, 0);
       }
       break;
 
@@ -525,7 +524,6 @@ uint32_t Decode(DecodeData* This)
          This->Function += ((OpCode >> 7) & 0x0F);
          This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode);
-         getgen(This, OpCode >> 11, 0);
       }
       break;
 
@@ -533,8 +531,6 @@ uint32_t Decode(DecodeData* This)
       {
          This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode);
-         getgen(This, OpCode >> 11, 0);
-         getgen(This, OpCode >> 6, 1);
       }
       break;
 
@@ -544,14 +540,13 @@ uint32_t Decode(DecodeData* This)
          This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode >> 8);
 
-         if (This->Function == SETCFG)
-         {
-            This->Info.Whole = 0;
-         }
-         else if (OpCode & BIT(Translation))
-         {
-            This->Info.Op[0].Size = sz8;
-            This->Info.Op[1].Size = sz8;
+         if (This->Function != SETCFG)
+         { 
+            if (OpCode & BIT(Translation))
+            {
+               This->Info.Op[0].Size = sz8;
+               This->Info.Op[1].Size = sz8;
+            }
          }
       }
       break;
@@ -561,8 +556,6 @@ uint32_t Decode(DecodeData* This)
          This->Function += ((OpCode >> 10) & 0x0F);
          This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode >> 8);
-         getgen(This, OpCode >> 19, 0);
-         getgen(This, OpCode >> 14, 1);
       }
       break;
 
@@ -571,8 +564,6 @@ uint32_t Decode(DecodeData* This)
          This->Function += ((OpCode >> 10) & 0x0F);
          This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode >> 8);
-         getgen(This, OpCode >> 19, 0);
-         getgen(This, OpCode >> 14, 1);
       }
       break;
 
@@ -615,8 +606,6 @@ uint32_t Decode(DecodeData* This)
 
          This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode >> 8);
-         getgen(This, OpCode >> 19, 0);
-         getgen(This, OpCode >> 14, 1);
       }
       break;
 
@@ -631,8 +620,6 @@ uint32_t Decode(DecodeData* This)
             {
                This->Info.Op[0].Size = ((OpCode >> 8) & 3) + 1;                        // Source Size (Integer)
                This->Info.Op[1].Size = GET_F_SIZE(This->OpCode & BIT(10));             // Destination Size (Float/ Double)
-               getgen(This, OpCode >> 19, 0);                                          // Source Operand
-               getgen(This, OpCode >> 14, 1);                                          // Destination Operand
             }
             break;
 
@@ -642,8 +629,6 @@ uint32_t Decode(DecodeData* This)
             {
                This->Info.Op[0].Size = GET_F_SIZE(OpCode & BIT(10));                   // Source Size (Float/ Double)
                This->Info.Op[1].Size = ((OpCode >> 8) & 3) + 1;                        // Destination Size (Integer)
-               getgen(This, OpCode >> 19, 0);                                          // Source Operand
-               getgen(This, OpCode >> 14, 1);                                          // Destination Operand
             }
             break;
 
@@ -652,7 +637,6 @@ uint32_t Decode(DecodeData* This)
                SetSize(This, OpCode >> 8);
                if (This->Function != SFSR)
                {
-                  getgen(This, OpCode >> 19, 0);
                   if (This->Function != MOVif)
                   {
                      This->Info.Op[0].Size = GET_F_SIZE(OpCode & BIT(8));               // Source Size (Float/ Double)
@@ -661,7 +645,6 @@ uint32_t Decode(DecodeData* This)
 
                if (This->Function != LFSR)
                {
-                  getgen(This, OpCode >> 14, 1);
                   This->Info.Op[1].Size = GET_F_SIZE(OpCode & BIT(8));                  // Source Size (Float/ Double)
                }
             }
@@ -670,7 +653,7 @@ uint32_t Decode(DecodeData* This)
 
          if (nscfg.fpu_flag == 0)
          {
-            Trap = UnknownInstruction;
+            Trap |= UnknownInstruction;
          }
       }
       break;
@@ -682,12 +665,10 @@ uint32_t Decode(DecodeData* This)
          This->Info.Whole = OpFlags[This->Function];
          This->Info.Op[0].Size =
          This->Info.Op[1].Size = GET_F_SIZE(OpCode & BIT(8));
-         getgen(This, OpCode >> 19, 0);
-         getgen(This, OpCode >> 14, 1);
 
          if (nscfg.fpu_flag == 0)
          {
-            Trap = UnknownInstruction;
+            Trap |= UnknownInstruction;
          }
       }
       break;
@@ -707,7 +688,6 @@ uint32_t Decode(DecodeData* This)
       break;
    }
 
-#if 0
    if (Format >= Format6)
    {
       OpCode >>= 8;
@@ -722,7 +702,6 @@ uint32_t Decode(DecodeData* This)
    {
       getgen(This, OpCode >> 6, 1);
    }
-#endif
 
    return Trap;
 }
