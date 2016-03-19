@@ -953,7 +953,7 @@ void TakeInterrupt(uint32_t IntBase)
 void WarnIfShiftInvalid(uint32_t shift, uint8_t size)
 {
    size *= 8;    // 8, 16, 32
-   if ((shift >= size && shift <= 0xFF - size) || (shift > 0xFF))
+   if (((shift >= size) && (shift <= (0xFF - size))) || (shift > 0xFF))
    {
       PiWARN("Invalid shift of %08"PRIX32" for size %"PRId8"\n", shift, size);
    }
@@ -986,9 +986,10 @@ uint32_t ReturnCommon(void)
 
 void n32016_exec()
 {
-   uint32_t temp = 0, temp2, temp3;
+   uint32_t /*temp = 0,*/ temp2, temp3;
    Temp32Type Src, Dst;
    Temp64Type Src64, Dst64;
+   int32_t Disp;
 
    if (tube_irq & 2)
    {
@@ -1044,7 +1045,7 @@ void n32016_exec()
 
       if (Data.Function <= RETT)
       {
-         temp = GetDisplacement(&Data);
+         Disp = GetDisplacement(&Data);
       }
 
       if (TrapFlags)
@@ -1143,7 +1144,7 @@ void n32016_exec()
 
          case BR:
          {
-            Data.CurrentAddress = Data.StartAddress + temp;
+            Data.CurrentAddress = Data.StartAddress + Disp;
             continue;
          }
          // No break due to continue
@@ -1159,7 +1160,7 @@ void n32016_exec()
          case BSR:
          {
             pushd(Data.CurrentAddress);
-            Data.CurrentAddress = Data.StartAddress + temp;
+            Data.CurrentAddress = Data.StartAddress + Disp;
             continue;
          }
          // No break due to continue
@@ -1167,16 +1168,16 @@ void n32016_exec()
          case RET:
          {
             Data.CurrentAddress = popd();
-            INC_SP(temp);
+            INC_SP(Disp);
             continue;
          }
          // No break due to continue
 
          case CXP:
          {
-            temp2 = read_x32(mod + 4) + ((int32_t) temp) * 4;
+            temp2 = read_x32(mod + 4) + Disp * 4;
 
-            temp = read_x32(temp2);   // Matching Tail with CXPD, complier do your stuff
+            uint32_t temp = read_x32(temp2);   // Matching Tail with CXPD, complier do your stuff
             pushd((CXP_UNUSED_WORD << 16) | mod);
             pushd(Data.CurrentAddress);
             mod = temp & 0xFFFF;
@@ -1193,7 +1194,7 @@ void n32016_exec()
             Data.CurrentAddress = popd();
             temp2 = popd();
             mod = temp2 & 0xFFFF;
-            INC_SP(temp);
+            INC_SP(Disp);
             sb = read_x32(mod);
             continue;
          }
@@ -1206,7 +1207,7 @@ void n32016_exec()
                GOTO_TRAP(PrivilegedInstruction);
             }
 
-            INC_SP(temp);
+            INC_SP(Disp);
             continue;
          }
          // No break due to continue
@@ -1226,7 +1227,7 @@ void n32016_exec()
          case SAVE:
          {
             int c;
-            temp = Consume_x8(&Data);
+            uint32_t temp = Consume_x8(&Data);
 
             for (c = 0; c < 8; c++)                             // Matching tail with ENTER
             {
@@ -1249,11 +1250,11 @@ void n32016_exec()
          case ENTER:
          {
             int c;
-            temp = Consume_x8(&Data);
-            temp2 = GetDisplacement(&Data);
+            uint32_t temp = Consume_x8(&Data);
+            Disp = GetDisplacement(&Data);
             pushd(fp);
             fp = GET_SP();
-            DEC_SP(temp2);
+            DEC_SP(Disp);
 
             for (c = 0; c < 8; c++)                              // Matching tail with SAVE
             {
@@ -1298,7 +1299,7 @@ void n32016_exec()
 
          case SVC:
          {
-            temp = psr;
+            uint32_t temp = psr;
             psr &= ~0x700;
             // In SVC, the address pushed is the address of the SVC opcode
             pushd((temp << 16) | mod);
@@ -1325,7 +1326,7 @@ void n32016_exec()
          {
             temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
-            temp = AddCommon(Src.u32, temp2, 0);
+            Dst.u32 = AddCommon(Src.u32, temp2, 0);
          }
          break;
 
@@ -1354,28 +1355,28 @@ void n32016_exec()
             switch (temp2)
             {
                case 0x0:
-                  temp = psr & 0xff;
+                  Dst.u32 = psr & 0xff;
                break;
                case 0x8:
-                  temp = fp;
+                  Dst.u32 = fp;
                break;
                case 0x9:
-                  temp = GET_SP();    // returned the currently selected stack pointer
+                  Dst.u32 = GET_SP();    // returned the currently selected stack pointer
                break;
                case 0xA:
-                  temp = sb;
+                  Dst.u32 = sb;
                break;
                case 0xB:
-                  temp = sp[1];       // returns the user stack pointer
+                  Dst.u32 = sp[1];       // returns the user stack pointer
                break;
                case 0xD:
-                  temp = psr;
+                  Dst.u32 = psr;
                break;
                case 0xE:
-                  temp = intbase;
+                  Dst.u32 = intbase;
                break;
                case 0xF:
-                  temp = mod;
+                  Dst.u32 = mod;
                break;
 
                default:
@@ -1389,7 +1390,7 @@ void n32016_exec()
 
          case Scond:
          {
-            temp = CheckCondition(Data.OpCode >> 7);
+            Dst.u32 = CheckCondition(Data.OpCode >> 7);
          }
          break;
 
@@ -1397,17 +1398,17 @@ void n32016_exec()
          {
             temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
-            temp = Src.u32 + temp2;
-            temp2 = GetDisplacement(&Data);
-            if (Truncate(temp, Data.Info.Op[0].Size))
-               Data.CurrentAddress = Data.StartAddress + temp2;
+            Dst.u32 = Src.u32 + temp2;
+            Disp = GetDisplacement(&Data);
+            if (Truncate(Dst.u32, Data.Info.Op[1].Size))
+               Data.CurrentAddress = Data.StartAddress + Disp;
          }
          break;
 
          case MOVQ:
          {
-            temp = (Data.OpCode >> 7) & 0xF;
-            NIBBLE_EXTEND(temp);
+            Dst.u32 = (Data.OpCode >> 7) & 0xF;
+            NIBBLE_EXTEND(Dst.u32);
          }
          break;
 
@@ -1466,7 +1467,7 @@ void n32016_exec()
 
          case CXPD:
          {
-            temp = read_x32(Src.u32);   // Matching Tail with CXPD, complier do your stuff
+            uint32_t temp = read_x32(Src.u32);   // Matching Tail with CXPD, complier do your stuff
             pushd((CXP_UNUSED_WORD << 16) | mod);
             pushd(Data.CurrentAddress);
             mod = temp & 0xFFFF;
@@ -1543,7 +1544,7 @@ void n32016_exec()
 
          case ADD:
          {
-            temp = AddCommon(Dst.u32, Src.u32, 0);
+            Dst.u32 = AddCommon(Dst.u32, Src.u32, 0);
          }
          break;
 
@@ -1557,51 +1558,50 @@ void n32016_exec()
          case BIC:
          {
             Dst.u32 &= ~Src.u32;
-            temp = Dst.u32;
          }
          break;
 
          case ADDC:
          {
             temp3 = C_FLAG;
-            temp = AddCommon(Dst.u32, Src.u32, temp3);
+            Dst.u32 = AddCommon(Dst.u32, Src.u32, temp3);
          }
          break;
 
          case MOV:
          {
-            temp = Src.u32;
+            Dst.u32 = Src.u32;
          }
          break;
 
          case OR:
          {
-            temp = Src.u32 | Dst.u32;
+            Dst.u32 |= Src.u32;
          }
          break;
 
          case SUB:
          {
-            temp = SubCommon(Dst.u32, Src.u32, 0);
+            Dst.u32 = SubCommon(Dst.u32, Src.u32, 0);
          }
          break;
 
          case ADDR:
          {
-            temp = Src.u32;
+            Dst.u32 = Src.u32;
          }
          break;
 
          case AND:
          {
-             temp = Dst.u32 & Src.u32;
+             Dst.u32 &= Src.u32;
          }
          break;
 
          case SUBC:
          {
             temp3 = C_FLAG;
-            temp = SubCommon(Dst.u32, Src.u32, temp3);
+            Dst.u32 = SubCommon(Dst.u32, Src.u32, temp3);
          }
          break;
 
@@ -1621,7 +1621,7 @@ void n32016_exec()
 
          case XOR:
          {
-            temp = Dst.u32 ^ Src.u32;
+            Dst.u32 ^= Src.u32;
          }
          break;
 
@@ -1635,7 +1635,7 @@ void n32016_exec()
                continue;
             }
 
-            temp = read_n(r[1], Data.Info.Op[0].Size);
+            uint32_t temp = read_n(r[1], Data.Info.Op[0].Size);
 
             if (Data.OpCode & BIT(Translation))
             {
@@ -1663,7 +1663,7 @@ void n32016_exec()
                continue;
             }
 
-            temp = read_n(r[1], Data.Info.Op[0].Size);
+            uint32_t temp = read_n(r[1], Data.Info.Op[0].Size);
 
             if (Data.OpCode & BIT(Translation))
             {
@@ -1708,7 +1708,7 @@ void n32016_exec()
                continue;
             }
 
-            temp = read_n(r[1], Data.Info.Op[0].Size);
+            uint32_t temp = read_n(r[1], Data.Info.Op[0].Size);
 
             if (Data.OpCode & BIT(Translation))
             {
@@ -1741,14 +1741,12 @@ void n32016_exec()
                Src.u32 = ((Src.u32 ^ 0xFF) + 1);
                Src.u32 = temp3 - Src.u32;
             }
-            temp = (Dst.u32 << Src.u32) | (Dst.u32 >> (temp3 - Src.u32));
+            Dst.u32 = (Dst.u32 << Src.u32) | (Dst.u32 >> (temp3 - Src.u32));
          }
          break;
 
          case ASH:
          {
-            temp = Dst.u32;
-
             WarnIfShiftInvalid(Src.u32, Data.Info.Op[1].Size);
 
             // Test if the shift is negative (i.e. a right shift)
@@ -1759,41 +1757,41 @@ void n32016_exec()
                if (Data.Info.Op[1].Size == sz8)
                {
                   // Test if the operand is also negative
-                  if (temp & 0x80)
+                  if (Dst.u32 & 0x80)
                   {
                      // Sign extend in a portable way
-                     temp = (temp >> Src.u32) | ((0xFF >> Src.u32) ^ 0xFF);
+                     Dst.u32 = (Dst.u32 >> Src.u32) | ((0xFF >> Src.u32) ^ 0xFF);
                   }
                   else
                   {
-                     temp = (temp >> Src.u32);
+                     Dst.u32 = (Dst.u32 >> Src.u32);
                   }
                }
                else if (Data.Info.Op[1].Size == sz16)
                {
-                  if (temp & 0x8000)
+                  if (Dst.u32 & 0x8000)
                   {
-                     temp = (temp >> Src.u32) | ((0xFFFF >> Src.u32) ^ 0xFFFF);
+                     Dst.u32 = (Dst.u32 >> Src.u32) | ((0xFFFF >> Src.u32) ^ 0xFFFF);
                   }
                   else
                   {
-                     temp = (temp >> Src.u32);
+                     Dst.u32 = (Dst.u32 >> Src.u32);
                   }
                }
                else
                {
-                  if (temp & 0x80000000)
+                  if (Dst.u32 & 0x80000000)
                   {
-                     temp = (temp >> Src.u32) | ((0xFFFFFFFF >> Src.u32) ^ 0xFFFFFFFF);
+                     Dst.u32 = (Dst.u32 >> Src.u32) | ((0xFFFFFFFF >> Src.u32) ^ 0xFFFFFFFF);
                   }
                   else
                   {
-                     temp = (temp >> Src.u32);
+                     Dst.u32 = (Dst.u32 >> Src.u32);
                   }
                }
             }
             else
-               temp <<= Src.u32;
+               Dst.u32 <<= Src.u32;
          }
          break;
 
@@ -1804,23 +1802,21 @@ void n32016_exec()
             // Operation output pin on the CPU, which may be used in multiprocessor systems to
             // interlock accesses to semaphore bits. This aspect is not implemented here.
             F_FLAG = TEST(Dst.u32 & Src.u32);
-            temp = Dst.u32 & ~(Src.u32);
+            Dst.u32 &= ~(Src.u32);
          }
          break;
 
          case LSH:
          {
-            temp = Dst.u32;
-
             WarnIfShiftInvalid(Src.u32, Data.Info.Op[1].Size);
 
             if (Src.u32 & 0xE0)
             {
                Src.u32 |= 0xE0;
-               temp >>= ((Src.u32 ^ 0xFF) + 1);
+               Dst.u32 >>= ((Src.u32 ^ 0xFF) + 1);
             }
             else
-               temp <<= Src.u32;
+               Dst.u32 <<= Src.u32;
          }
          break;
 
@@ -1831,27 +1827,26 @@ void n32016_exec()
             // Operation output pin on the CPU, which may be used in multiprocessor systems to
             // interlock accesses to semaphore bits. This aspect is not implemented here.
             F_FLAG = TEST(Dst.u32 & Src.u32);
-            temp = Dst.u32 | Src.u32;
+            Dst.u32 |= Src.u32;
          }
          break;
 
          case NEG:
          {
-            temp = 0;
-            temp = SubCommon(temp, Src.u32, 0);
+            Dst.u32 = SubCommon(0, Src.u32, 0);
          }
          break;
 
          case NOT:
          {
-            temp = Src.u32 ^ 1;
+            Dst.u32 = Src.u32 ^ 1;
          }
          break;
 
          case SUBP:
          {
             uint32_t carry = C_FLAG;
-            temp = bcd_sub(Dst.u32, Src.u32, Data.Info.Op[0].Size, &carry);
+            Dst.u32 = bcd_sub(Dst.u32, Src.u32, Data.Info.Op[0].Size, &carry);
             C_FLAG = TEST(carry);
             F_FLAG = 0;
          }
@@ -1859,44 +1854,44 @@ void n32016_exec()
 
          case ABS:
          {
-            temp = Src.u32;
+            Dst.u32 = Src.u32;
             switch (Data.Info.Op[0].Size)
             {
                case sz8:
                {
-                  if (temp == 0x80)
+                  if (Dst.u32 == 0x80)
                   {
                      F_FLAG = 1;
                   }
-                  if (temp & 0x80)
+                  if (Dst.u32 & 0x80)
                   {
-                     temp = (temp ^ 0xFF) + 1;
+                     Dst.u32 = (Dst.u32 ^ 0xFF) + 1;
                   }
                }
                break;
 
                case sz16:
                {
-                  if (temp == 0x8000)
+                  if (Dst.u32 == 0x8000)
                   {
                      F_FLAG = 1;
                   }
-                  if (temp & 0x8000)
+                  if (Dst.u32 & 0x8000)
                   {
-                     temp = (temp ^ 0xFFFF) + 1;
+                     Dst.u32 = (Dst.u32 ^ 0xFFFF) + 1;
                   }
                }
                break;
 
                case sz32:
                {
-                  if (temp == 0x80000000)
+                  if (Dst.u32 == 0x80000000)
                   {
                      F_FLAG = 1;
                   }
-                  if (temp & 0x80000000)
+                  if (Dst.u32 & 0x80000000)
                   {
-                     temp = (temp ^ 0xFFFFFFFF) + 1;
+                     Dst.u32 = (Dst.u32 ^ 0xFFFFFFFF) + 1;
                   }
                }
                break;
@@ -1906,21 +1901,21 @@ void n32016_exec()
 
          case COM:
          {
-            temp = ~Src.u32;
+            Dst.u32 = ~Src.u32;
          }
          break;
 
          case IBIT:
          {
             F_FLAG = TEST(Dst.u32 & Src.u32);
-            temp = Dst.u32 ^ Src.u32;
+            Dst.u32 ^= Src.u32;
          }
          break;
 
          case ADDP:
          {
             uint32_t carry = C_FLAG;
-            temp = bcd_add(Dst.u32, Src.u32, Data.Info.Op[0].Size, &carry);
+            Dst.u32 = bcd_add(Dst.u32, Src.u32, Data.Info.Op[0].Size, &carry);
             C_FLAG = TEST(carry);
             F_FLAG = 0;
          }
@@ -1931,7 +1926,7 @@ void n32016_exec()
          case MOVM:
          {
             //temp = GetDisplacement(&Data) + Data.Info.Op[0].Size;                      // disp of 0 means move 1 byte
-            temp = (GetDisplacement(&Data) & ~(Data.Info.Op[0].Size - 1))  + Data.Info.Op[0].Size;
+            uint32_t temp = (GetDisplacement(&Data) & ~(Data.Info.Op[0].Size - 1)) + Data.Info.Op[0].Size;
             while (temp)
             {
                temp2 = read_x8(Src.u32);
@@ -1953,7 +1948,7 @@ void n32016_exec()
             //PiTRACE("CMP Size = %u Count = %u\n", temp4, temp3);
             while (temp3--)
             {
-               temp  = read_n(Src.u32, temp4);
+               uint32_t temp = read_n(Src.u32, temp4);
                temp2 = read_n(Dst.u32, temp4);
  
                if (CompareCommon(temp, temp2) == 0)
@@ -1973,22 +1968,17 @@ void n32016_exec()
          {
             uint32_t c;
 
-            // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
-            temp = Src.u32;
-            temp3 = Consume_x8(&Data);
+            temp3 = Consume_x8(&Data);            // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
 
             // The field can be upto 32 bits, and is independent of the opcode i bits
-            Data.Info.Op[1].Size = sz32;
-
             for (c = 0; c <= (temp3 & 0x1F); c++)
             {
                Dst.u32 &= ~(BIT((c + (temp3 >> 5)) & 31));
-               if (temp & BIT(c))
+               if (Src.u32 & BIT(c))
                {
                   Dst.u32 |= BIT((c + (temp3 >> 5)) & 31);
                }
             }
-            temp = Dst.u32;
          }
          break;
 
@@ -2004,54 +1994,53 @@ void n32016_exec()
             }
 
             // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
-            temp = Src.u32;
             temp3 = Consume_x8(&Data);
             temp2 = 0;
-            temp >>= (temp3 >> 5); // Shift by offset
+            Src.u32 >>= (temp3 >> 5); // Shift by offset
             temp3 &= 0x1F; // Mask off the lower 5 Bits which are number of bits to extract
 
             for (c = 0; c <= temp3; c++)
             {
-               if (temp & temp4) // Copy the ones
+               if (Src.u32 & temp4) // Copy the ones
                {
                   temp2 |= temp4;
                }
 
                temp4 <<= 1;
             }
-            temp = temp2;
+            Dst.u32 = temp2;
          }
          break;
 
          case MOVXiW:
          {
             SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32); // Editor need the useless semicolon
-            temp = Src.u32;
+            Dst.u32 = Src.u32;
          }
          break;
 
          case MOVZiW:
          {
-            temp = Src.u32;
+            Dst.u32 = Src.u32;
          }
          break;
 
          case MOVZiD:
          {
-            temp = Src.u32;
+            Dst.u32 = Src.u32;
          }
          break;
 
          case MOVXiD:
          {
             SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32); // Editor need the useless semicolon
-            temp = Src.u32;
+            Dst.u32 = Src.u32;
          }
          break;
 
          case MUL:
          {
-            temp = Dst.u32 * Src.u32;
+            Dst.u32 *= Src.u32;
          }
          break;
 
@@ -2062,7 +2051,7 @@ void n32016_exec()
             // Handle the writing to the upper half of dst locally here
             handle_mei_dei_upper_write(Dst64.u64);
             // Allow fall through write logic to write the lower half of dst
-            temp = (uint32_t) Dst64.u64;
+            Dst.u32 = (uint32_t) Dst64.u64;
          }
          break;
 
@@ -2084,14 +2073,14 @@ void n32016_exec()
                   Dst64.u64 = ((Dst64.u64 >> 16) & 0xFFFF0000) | (Dst64.u64 & 0xFFFF);
                   break;
             }
-            // PiTRACE("temp = %08x\n", temp);
+            // PiTRACE("Dst.u32 = %08x\n", Dst.u32);
             // PiTRACE("temp64.u64 = %016" PRIu64 "\n", temp64.u64);
             Dst64.u64 = ((Dst64.u64 / Src.u32) << size) | (Dst64.u64 % Src.u32);
             //PiTRACE("result = %016" PRIu64 "\n", temp64.u64);
             // Handle the writing to the upper half of dst locally here
             handle_mei_dei_upper_write(Dst64.u64);
             // Allow fallthrough write logic to write the lower half of dst
-            temp = (uint32_t) Dst64.u64;
+            Dst.u32 = (uint32_t) Dst64.u64;
             Data.Info.Op[1].Size = Data.Info.Op[0].Size;
          }
          break;
@@ -2106,15 +2095,15 @@ void n32016_exec()
             switch (Data.Info.Op[0].Size)
             {
                case sz8:
-                  temp = (int8_t) Dst.u32 / (int8_t) Src.u32;
+                  Dst.u32 = (int8_t) Dst.u32 / (int8_t) Src.u32;
                break;
 
                case sz16:
-                  temp = (int16_t) Dst.u32 / (int16_t) Src.u32;
+                  Dst.u32 = (int16_t) Dst.u32 / (int16_t) Src.u32;
                break;
 
                case sz32:
-                  temp = (int32_t) Dst.u32 / (int32_t) Src.u32;
+                  Dst.u32 = (int32_t) Dst.u32 / (int32_t) Src.u32;
                break;
             }
          }
@@ -2130,15 +2119,15 @@ void n32016_exec()
             switch (Data.Info.Op[0].Size)
             {
                case sz8:
-                  temp = (int8_t) Dst.u32 % (int8_t) Src.u32;
+                  Dst.u32 = (int8_t) Dst.u32 % (int8_t) Src.u32;
                break;
 
                case sz16:
-                  temp = (int16_t) Dst.u32 % (int16_t) Src.u32;
+                  Dst.u32 = (int16_t) Dst.u32 % (int16_t) Src.u32;
                break;
 
                case sz32:
-                  temp = (int32_t) Dst.u32 % (int32_t) Src.u32;
+                  Dst.u32 = (int32_t) Dst.u32 % (int32_t) Src.u32;
                break;
             }
          }
@@ -2151,7 +2140,7 @@ void n32016_exec()
                GOTO_TRAP(DivideByZero);
             }
 
-            temp = mod_operator(Dst.u32, Src.u32);
+            Dst.u32 = mod_operator(Dst.u32, Src.u32);
          }
          break;
 
@@ -2162,7 +2151,7 @@ void n32016_exec()
                GOTO_TRAP(DivideByZero);
             }
 
-            temp = div_operator(Dst.u32, Src.u32);
+            Dst.u32 = div_operator(Dst.u32, Src.u32);
          }
          break;
 
@@ -2170,14 +2159,14 @@ void n32016_exec()
  
          case EXT:
          {
-            uint32_t c;
+            int32_t c;
             int32_t  Offset = r[(Data.OpCode >> 11) & 7];
-            uint32_t Length = GetDisplacement(&Data);
+            Disp = GetDisplacement(&Data);
             uint32_t StartBit;
 
-            if (Length < 1 || Length > 32)
+            if (Disp < 1 || Disp > 32)
             {
-               PiWARN("EXT with length %08"PRIx32" is undefined\n", Length);
+               PiWARN("EXT with length %08"PRIx32" is undefined\n", Disp);
                continue; // with next instruction
             }
 
@@ -2208,12 +2197,12 @@ void n32016_exec()
 
             Data.Info.Op[0].Size = sz32;
 
-            temp = 0;
-            for (c = 0; (c < Length) && (c + StartBit < 32); c++)
+            Dst.u32 = 0;
+            for (c = 0; (c < Disp) && (c + StartBit < 32); c++)
             {
                if (Src.s32 & BIT(c + StartBit))
                {
-                  temp |= BIT(c);
+                  Dst.u32 |= BIT(c);
                }
             }
          }
@@ -2222,21 +2211,21 @@ void n32016_exec()
          case CVTP:
          {
             int32_t Offset = r[(Data.OpCode >> 11) & 7];
-            temp = (Src.u32 * 8) + Offset;
+            Dst.u32 = (Src.u32 * 8) + Offset;
             Data.Info.Op[1].Size = sz32;
          }
          break;
 
          case INS:
          {
-            uint32_t c;
+            int32_t c;
             int32_t  Offset = r[(Data.OpCode >> 11) & 7];
-            uint32_t Length = GetDisplacement(&Data);
+            Disp = GetDisplacement(&Data);
             uint32_t StartBit;
 
-            if (Length < 1 || Length > 32)
+            if (Disp < 1 || Disp > 32)
             {
-               PiWARN("INS with length %08"PRIx32" is undefined\n", Length);
+               PiWARN("INS with length %08"PRIx32" is undefined\n", Disp);
                continue; // with next instruction
             }
 
@@ -2270,16 +2259,15 @@ void n32016_exec()
 
             // The field can be upto 32 bits, and is independent of the opcode i bits
             Data.Info.Op[1].Size = sz32;
-            temp = Dst.u32;
-            for (c = 0; (c < Length) && (c + StartBit < 32); c++)
+            for (c = 0; (c < Disp) && (c + StartBit < 32); c++)
             {
                if (Src.u32 & BIT(c))
                {
-                  temp |= BIT(c + StartBit);
+                  Dst.u32 |= BIT(c + StartBit);
                }
                else
                {
-                  temp &= ~(BIT(c + StartBit));
+                  Dst.u32 &= ~(BIT(c + StartBit));
                }
             }
          }
@@ -2287,6 +2275,8 @@ void n32016_exec()
 
          case CHECK:
          {
+            uint32_t temp;
+
             switch (Data.Info.Op[0].Size)
             {
                case sz8:
@@ -2334,7 +2324,7 @@ void n32016_exec()
             // 5, 7, 0x13 (19)
             // accum = accum * (length+1) + index
 
-            temp = r[(Data.OpCode >> 11) & 7];  // Accum
+            uint32_t temp = r[(Data.OpCode >> 11) & 7];  // Accum
             Src.u32 += 1;                       // (length+1)
 
             r[(Data.OpCode >> 11) & 7] = (temp * Src.u32) + Dst.u32;
@@ -2348,14 +2338,13 @@ void n32016_exec()
             // Src.u32 is the variable size operand being scanned
             // Dst.u32 is offset and is always 8 bits (also the result)
 
-            temp = Dst.u32;
             // find the first set bit, starting at offset
-            for (; temp < numbits && !(Src.u32 & BIT(temp)); temp++)
+            for (; Dst.u32 < numbits && !(Src.u32 & BIT(Dst.u32)); Dst.u32++)
             {
                continue;                  // No Body!
             }
 
-            if (temp < numbits)
+            if (Dst.u32 < numbits)
             {
                // a set bit was found, return it in the offset operand
                F_FLAG = 0;
@@ -2364,7 +2353,7 @@ void n32016_exec()
             {
                // no set bit was found, return 0 in the offset operand
                F_FLAG = 1;
-               temp = 0;
+               Dst.u32 = 0;
             }
          }
          break;
@@ -2378,9 +2367,7 @@ void n32016_exec()
             }
             else
             {
-               Temp32Type q;
-               q.f32 = (float) Src.s32;
-               temp = q.u32;
+               Dst.f32 = (float) Src.s32;
             }
          }
          break;
@@ -2394,9 +2381,7 @@ void n32016_exec()
 
          case MOVLF:
          {
-            Temp32Type q;
-            q.f32 = (float) Src64.f64;
-            temp = q.u32;
+            Dst.f32 = (float) Src64.f64;
          }
          break;
 
@@ -2410,11 +2395,11 @@ void n32016_exec()
          {
             if (Data.Info.Op[0].Size == sz64)
             {
-               temp = (int32_t) round(Src64.f64);
+               Dst.u32 = (int32_t) round(Src64.f64);
             }
             else
             {
-               temp = (int32_t) roundf(Src.f32);
+               Dst.u32 = (int32_t) roundf(Src.f32);
             }
          }
          break;
@@ -2423,18 +2408,18 @@ void n32016_exec()
          {
             if (Data.Info.Op[0].Size == sz64)
             {
-               temp = (int32_t) Src64.f64;
+               Dst.u32 = (int32_t) Src64.f64;
             }
             else
             {
-               temp = (int32_t) Src.f32;
+               Dst.u32 = (int32_t) Src.f32;
             }
          }
          break;
 
          case SFSR:
          {
-            temp = FSR;
+            Dst.u32 = FSR;
          }
          break;
 
@@ -2442,11 +2427,11 @@ void n32016_exec()
          {
             if (Data.Info.Op[0].Size == sz64)
             {
-               temp = (int32_t) floor(Src64.f64);
+               Dst.u32 = (int32_t) floor(Src64.f64);
             }
             else
             {
-               temp = (int32_t) floorf(Src.f32);
+               Dst.u32 = (int32_t) floorf(Src.f32);
             }
          }
          break;
@@ -2461,7 +2446,6 @@ void n32016_exec()
             else
             {
                Dst.f32 += Src.f32;
-               temp = Dst.u32;
             }
          }
          break;
@@ -2474,7 +2458,7 @@ void n32016_exec()
             }
             else
             {
-               temp = Src.u32;
+               Dst.u32 = Src.u32;
             }
          }
          break;
@@ -2506,7 +2490,6 @@ void n32016_exec()
             else
             {
                Dst.f32 -= Src.f32;
-               temp = Dst.u32;
             }
          }
          break;
@@ -2520,7 +2503,6 @@ void n32016_exec()
             else
             {
                Dst.f32 = -Src.f32;
-               temp = Dst.u32;
             }
          }
          break;
@@ -2534,7 +2516,6 @@ void n32016_exec()
             else
             {
                Dst.f32 /= Src.f32;
-               temp = Dst.u32;
             }
          }
          break;
@@ -2548,7 +2529,6 @@ void n32016_exec()
             else
             {
                Dst.f32 *= Src.f32;
-               temp = Dst.u32;
             }
          }
          break;
@@ -2562,7 +2542,6 @@ void n32016_exec()
             else
             {
                Dst.f32  = fabsf(Src.f32);
-               temp     = Dst.u32;
             }
          }
          break;
@@ -2589,9 +2568,9 @@ void n32016_exec()
             {
                switch (WriteSize)
                {
-                  case sz8:   write_x8( genaddr[WriteIndex], temp);  break;
-                  case sz16:  write_x16(genaddr[WriteIndex], temp);  break;
-                  case sz32:  write_x32(genaddr[WriteIndex], temp);  break;
+                  case sz8:   write_x8( genaddr[WriteIndex], Dst.u32);  break;
+                  case sz16:  write_x16(genaddr[WriteIndex], Dst.u32);  break;
+                  case sz32:  write_x32(genaddr[WriteIndex], Dst.u32);  break;
                   case sz64:  write_x64(genaddr[WriteIndex], Dst64.u64);  break;
                }
             }
@@ -2601,16 +2580,16 @@ void n32016_exec()
             {
                switch (WriteSize)
                {
-                  case sz8:   *((uint8_t*)   genaddr[WriteIndex]) = temp;  break;
-                  case sz16:  *((uint16_t*)  genaddr[WriteIndex]) = temp;  break;
-                  case sz32:  *((uint32_t*)  genaddr[WriteIndex]) = temp;  break;
+                  case sz8:   *((uint8_t*)   genaddr[WriteIndex]) = Dst.u32;  break;
+                  case sz16:  *((uint16_t*)  genaddr[WriteIndex]) = Dst.u32;  break;
+                  case sz32:  *((uint32_t*)  genaddr[WriteIndex]) = Dst.u32;  break;
                   case sz64:  *((uint64_t*)  genaddr[WriteIndex]) = Dst64.u64;  break;
                }
 
 #if 1
                if (WriteSize <= sz32)
                {
-                  ShowRegisterWrite(Data.Regs[WriteIndex], Truncate(temp, WriteSize));
+                  ShowRegisterWrite(Data.Regs[WriteIndex], Truncate(Dst.u32, WriteSize));
                }
 #endif
             }
@@ -2624,7 +2603,7 @@ void n32016_exec()
                }
                else
                {
-                  PushArbitary(temp, WriteSize);
+                  PushArbitary(Dst.u32, WriteSize);
                }
             }
             break;

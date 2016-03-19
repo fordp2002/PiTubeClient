@@ -317,8 +317,8 @@ const uint32_t OpFlags[InstructionCount] =
    // Format 9
    OP(read, write | FP),      // MOVif
    OP(not_used, read),        // LFSR
-   OP(read | FP, write | FP), // MOVLF
-   OP(read | FP, write | FP), // MOVFL
+   OP(read | FP | sz64, write | FP | sz32), // MOVLF
+   OP(read | FP | sz32, write | FP | sz64), // MOVFL
 
    OP(read | FP,  write),     // ROUND
    OP(read | FP,  write),     // TRUNC
