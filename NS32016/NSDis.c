@@ -423,6 +423,10 @@ void AddInstructionText(DecodeData* This)
             case ROUND:
             case TRUNC:
             case FLOOR:
+            case MOVXiW:
+            case MOVZiW:
+            case MOVZiD:
+            case MOVXiD:
             {
                sprintf(Str + strlen(Str), "%c%c", GetText(This->Info.Op[0]), GetText(This->Info.Op[1]));
             }
@@ -448,23 +452,6 @@ void AddInstructionText(DecodeData* This)
                      sprintf(Str + strlen(Str), "%c", GetText(This->Info.Op[0]));
                   }
                }
-            }
-            break;
-         }
-
-         switch (This->Function)
-         {
-            case MOVXiW:
-            case MOVZiW:
-            {
-               sprintf(Str + strlen(Str), "W");
-            }
-            break;
-
-            case MOVZiD:
-            case MOVXiD:
-            {
-               sprintf(Str + strlen(Str), "D");
             }
             break;
          }
