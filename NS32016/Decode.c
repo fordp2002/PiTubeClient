@@ -381,9 +381,9 @@ const uint32_t OpFlags[InstructionCount] =
    OP(not_used, not_used),
    OP(not_used, not_used),
    OP(not_used, not_used),       // POLY
-   OP(not_used, not_used),       // DOT
+   OP(read | FP, read | FP),       // DOT
 
-   OP(not_used, not_used),       // SCALB
+   OP(read | FP, rmw | FP),       // SCALB
    OP(read | FP, write | FP),       // LOGB
    OP(not_used, not_used),
    OP(not_used, not_used),

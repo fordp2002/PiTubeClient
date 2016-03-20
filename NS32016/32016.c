@@ -2515,6 +2515,49 @@ void n32016_exec()
          }
          break;
   
+         case POLY:
+         {
+            if (Data.Info.Op[0].Size == sz64)
+            {
+               FR.fr64[0] = (FR.fr64[0] * Src64.f64) + Dst64.f64;
+            }
+            else
+            {
+               FR.fr32[0] = (FR.fr32[0] * Src.f32) + Dst.f32;
+            }
+
+            goto skip_write;
+         }
+         // No break due to goto
+
+         case DOT:
+         {
+            if (Data.Info.Op[0].Size == sz64)
+            {
+               FR.fr64[0] += (Src64.f64 * Dst64.f64);
+            }
+            else
+            {
+               FR.fr32[0] += (Src.f32 * Dst.f32);
+            }
+
+            goto skip_write;
+         }
+         // No break due to goto
+         
+         case SCALB:
+         {
+            if (Data.Info.Op[0].Size == sz64)
+            {
+               Dst64.f64 *= pow(2, trunc(Src64.f64));
+            }
+            else
+            {
+               Dst.f32 *= powf(2, truncf(Src.f32));
+            }
+         }
+         break;
+         
          case LOGB:
          {
             if (Data.Info.Op[0].Size == sz64)
