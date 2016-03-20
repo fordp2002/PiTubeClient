@@ -17,6 +17,8 @@
 #include "rpi-gpio.h"
 #include "rpi-aux.h"
 #include "rpi-interrupts.h"
+#include "../NS32016/defs.h"
+#include "../NS32016/Decode.h"
 #include "../NS32016/32016.h"
 #include "../NS32016/mem32016.h"
 
