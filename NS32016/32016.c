@@ -21,6 +21,7 @@
 #include "Profile.h"
 #endif
 
+//#define OLD_INSTRUCTION_TRACE
 #define CXP_UNUSED_WORD 0xAAAA
 
 int nsoutput = 0;
@@ -1008,15 +1009,27 @@ void n32016_exec()
    while (tubecycles > 0)
    {
       tubecycles -= 8;
+
+      //if (Data.CurrentAddress == 0xF000B5)
+      //{
+      //   printf("Brk\n");
+      //}
+
       TrapFlags |= Decode(&Data);
       
+#ifdef OLD_INSTRUCTION_TRACE
+      DecodeData This;
+      This.CurrentAddress = Data.StartAddress;
+      Decode(&This);
+      ShowInstruction(&This);
+#endif
+
       GetGenPhase2(Data.Regs[0], 0);
       GetGenPhase2(Data.Regs[1], 1);
 
       switch (Data.Info.Op[0].Class & 0x0F)
       {
          case read >> 8:
-         case write >> 8:
          case rmw >> 8:
          {
             if (Data.Info.Op[0].Size == sz64)
@@ -1045,7 +1058,6 @@ void n32016_exec()
       switch (Data.Info.Op[1].Class & 0x0F)
       {
          case read >> 8:
-         case write >> 8:
          case rmw >> 8:
          {
             if (Data.Info.Op[1].Size == sz64)
@@ -1116,7 +1128,7 @@ void n32016_exec()
          {
             pushd(Data.CurrentAddress);
             Data.CurrentAddress = Data.StartAddress + Disp;
-            continue;
+            goto skip_write;
          }
          // No break due to goto
 
@@ -2676,10 +2688,12 @@ void n32016_exec()
 
                   case SHOW_INSTRUCTIONS:
                   {
+#ifndef OLD_INSTRUCTION_TRACE
                      DecodeData This;
                      This.CurrentAddress = Data.StartAddress;
                      Decode(&This);
                      ShowInstruction(&This);
+#endif
                   }
                   break;
 

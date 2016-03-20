@@ -335,8 +335,7 @@ void RegLookUp(DecodeData* This)
 
    for (Index = 0; Index < 2; Index++)
    {
-      //if (This->Info.Op[Index].Size)
-      if (This->Regs[Index].Whole < 0xFFFF)
+      if (This->Info.Op[Index].Class)
       {
          if (Index == 1)
          {
@@ -434,6 +433,7 @@ void AddInstructionText(DecodeData* This)
 
             case SFSR:
             case LFSR:
+            case SETCFG:
             {
                // Nothing here!
             }
