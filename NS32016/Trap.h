@@ -3,30 +3,35 @@
 enum TrapTypes
 {
    NoIssue                 = 0,
+   
+   // These are features rather than traps
    BreakPointHit           = BIT(0),
-   BreakPointTrap          = BIT(1),
-   ReservedAddressingMode  = BIT(2),
-   UnknownFormat           = BIT(3),
-   UnknownInstruction      = BIT(4),
-   DivideByZero            = BIT(5),
-   IllegalImmediate        = BIT(6),
-   IllegalDoubleIndexing   = BIT(7),
-   IllegalSpecialReading   = BIT(8),
-   IllegalSpecialWriting   = BIT(9),
-   IllegalWritingImmediate = BIT(10),
-   FlagInstruction         = BIT(11),
-   PrivilegedInstruction   = BIT(12)
+   INSTRUCTION_PROFILING   = BIT(1),
+   PROFILING               = BIT(2),
+   SHOW_INSTRUCTIONS       = BIT(3),
+   SHOW_WRITES             = BIT(4),
+
+   // These are geniune traps
+   ReservedAddressingMode  = BIT(8),
+   UnknownFormat           = BIT(9),
+   UnknownInstruction      = BIT(10),
+   DivideByZero            = BIT(11),
+   IllegalImmediate        = BIT(12),
+   IllegalDoubleIndexing   = BIT(13),
+   IllegalSpecialReading   = BIT(14),
+   IllegalSpecialWriting   = BIT(15),
+   IllegalWritingImmediate = BIT(16),
+   FlagInstruction         = BIT(17),
+   PrivilegedInstruction   = BIT(18),
+   BreakPointTrap          = BIT(19)
 };
 
 #define TrapCount 13
 extern uint32_t TrapFlags;
-#define CLEAR_TRAP() TrapFlags = 0
+#define CLEAR_TRAP() TrapFlags &= 0xFF
 
 // Use SET_TRAP when in a function
 #define SET_TRAP(in) TrapFlags |= (in)
-
-// Use GOTO_TRAP when in the main loop
-#define GOTO_TRAP(in) TrapFlags |= (in); goto DoTrap
 
 extern void ShowTraps(void);
 extern void HandleTrap(void);

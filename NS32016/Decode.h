@@ -181,6 +181,13 @@ enum Functions
    MULf,
    ABSf,
 
+   TRAP_F12_0000 = F_BASE(Format12),
+   TRAP_F12_0001,
+   POLY,
+   DOT,
+   SCALB,
+   LOGB,
+
    RDVAL = F_BASE(Format14),
    WRVAL,
    LMR,

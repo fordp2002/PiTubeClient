@@ -14,6 +14,8 @@
 #include "32016.h"
 #include "mem32016.h"
 #include "Trap.h"
+#include "NDis.h"
+#include "Profile.h"
 
 #ifdef PROFILING
 #include "Profile.h"
@@ -986,7 +988,7 @@ uint32_t ReturnCommon(void)
 
 void n32016_exec()
 {
-   uint32_t /*temp = 0,*/ temp2, temp3;
+   uint32_t temp2, temp3;
    Temp32Type Src, Dst;
    Temp64Type Src64, Dst64;
    int32_t Disp;
@@ -1005,63 +1007,11 @@ void n32016_exec()
 
    while (tubecycles > 0)
    {
-#if 0
-      if ((Data.StartAddress >= 0x136) && (Data.StartAddress <= 0x147))
-      {
-         n32016_ShowRegs(BIT(0));
-      }
-#endif
-
       tubecycles -= 8;
-      CLEAR_TRAP();
-
-//      Data.Regs[0].Whole   =
-//      Data.Regs[1].Whole   = 0xFFFF;
-      if (Data.CurrentAddress == PR.BPC)
-      {
-         SET_TRAP(BreakPointHit);
-         goto DoTrap;
-      }
-
-      BreakPoint(&Data);
-
-#if 1
-      if (Data.CurrentAddress == 0x259)
-      {
-         printf("Here!\n");
-      }
-#endif
-
       TrapFlags |= Decode(&Data);
       
-      if (Trace)
-      {
-         DecodeData This = Data;                   // Make copy as data is altered
-         ShowInstruction(&This);
-      }
-
       GetGenPhase2(Data.Regs[0], 0);
       GetGenPhase2(Data.Regs[1], 1);
-
-      if (Data.Function <= RETT)
-      {
-         Disp = GetDisplacement(&Data);
-      }
-
-      if (TrapFlags)
-      {
-         DoTrap:
-         HandleTrap();
-         continue;
-      }
-
-#ifdef INSTRUCTION_PROFILING
-      IP[Data.StartAddress]++;
-#endif
-
-#ifdef PROFILING
-      ProfileAdd(Function, Data.Regs[0].Whole, Data.Regs[1].Whole);
-#endif
 
       switch (Data.Info.Op[0].Class & 0x0F)
       {
@@ -1116,6 +1066,11 @@ void n32016_exec()
          break;
       }
 
+      if (Data.Function <= RETT)
+      {
+         Disp = GetDisplacement(&Data);
+      }
+
       switch (Data.Function)
       {
          // Format 0 : Branches
@@ -1137,7 +1092,7 @@ void n32016_exec()
          {
             if (CheckCondition(Data.Function) == 0)
             {
-               continue;
+               goto skip_write;
             }
          }
          // Fall Through
@@ -1145,15 +1100,15 @@ void n32016_exec()
          case BR:
          {
             Data.CurrentAddress = Data.StartAddress + Disp;
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case BN:
          {
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          // Format 1
 
@@ -1163,15 +1118,15 @@ void n32016_exec()
             Data.CurrentAddress = Data.StartAddress + Disp;
             continue;
          }
-         // No break due to continue
+         // No break due to goto
 
          case RET:
          {
             Data.CurrentAddress = popd();
             INC_SP(Disp);
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case CXP:
          {
@@ -1185,9 +1140,9 @@ void n32016_exec()
             sb = read_x32(mod);
             temp2 = read_x32(mod + 8);
             Data.CurrentAddress = temp2 + temp3;
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case RXP:
          {
@@ -1196,33 +1151,34 @@ void n32016_exec()
             mod = temp2 & 0xFFFF;
             INC_SP(Disp);
             sb = read_x32(mod);
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case RETT:
          {
             if (ReturnCommon())
             {
-               GOTO_TRAP(PrivilegedInstruction);
+               SET_TRAP(PrivilegedInstruction);
+               goto skip_write;
             }
 
             INC_SP(Disp);
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case RETI:
          {
             // No "End of Interrupt" bus cycles here!
             if (ReturnCommon())
             {
-               GOTO_TRAP(PrivilegedInstruction);
+               SET_TRAP(PrivilegedInstruction);
             }
 
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case SAVE:
          {
@@ -1236,16 +1192,16 @@ void n32016_exec()
                   pushd(r[c]);
                }
             }
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case RESTORE:
          {
             PopRegisters();
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case ENTER:
          {
@@ -1263,37 +1219,38 @@ void n32016_exec()
                   pushd(r[c]);
                }
             }
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case EXIT:
          {
             PopRegisters();
             SET_SP(fp);
             fp = popd();
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case NOP:
          {
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
-         case WAIT:                                             // Wait for interrupt then continue execution
+         case WAIT:                                             // Wait for interrupt then goto skip_write execution
          case DIA:                                              // Wait for interrupt and in theory never resume execution (stack manipulation would get round this)
          {
             tubecycles = 0;                                    // Exit promptly as we are waiting for an interrupt
             Data.CurrentAddress = Data.StartAddress;
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case FLAG:
          {
-            GOTO_TRAP(FlagInstruction);
+            SET_TRAP(FlagInstruction);
+            goto skip_write;
          }
          // No break due to goto
 
@@ -1310,13 +1267,14 @@ void n32016_exec()
             sb = read_x32(mod);
             temp2 = read_x32(mod + 8);
             Data.CurrentAddress = temp2 + temp3;
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case BPT:
          {
-            GOTO_TRAP(BreakPointTrap);
+            SET_TRAP(BreakPointTrap);
+            goto skip_write;
          }
          // No break due to goto
 
@@ -1336,9 +1294,9 @@ void n32016_exec()
             NIBBLE_EXTEND(temp2);
             SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32);
             CompareCommon(temp2, Src.u32);
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case SPR:
          {
@@ -1348,7 +1306,8 @@ void n32016_exec()
             {
                if (PrivilegedPSR(temp2))
                {
-                  GOTO_TRAP(PrivilegedInstruction);
+                  SET_TRAP(PrivilegedInstruction);
+                  goto skip_write;
                }
             }
 
@@ -1381,7 +1340,8 @@ void n32016_exec()
 
                default:
                {
-                  GOTO_TRAP(IllegalSpecialReading);
+                  SET_TRAP(IllegalSpecialReading);
+                  goto skip_write;
                }
                // No break due to goto
             }
@@ -1420,7 +1380,8 @@ void n32016_exec()
             {
                if (PrivilegedPSR(temp2))
                {
-                  GOTO_TRAP(PrivilegedInstruction);
+                  SET_TRAP(PrivilegedInstruction);
+                  goto skip_write;
                }
             }
 
@@ -1436,9 +1397,9 @@ void n32016_exec()
                case 6:
                case 7:
                {
-                  GOTO_TRAP(IllegalSpecialWriting);
+                  SET_TRAP(IllegalSpecialWriting);
                }
-               // No break due to goto
+               break;
 
                case 9:
                {
@@ -1459,9 +1420,9 @@ void n32016_exec()
                break;
             }
 
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
      
          // Format 3
 
@@ -1475,9 +1436,9 @@ void n32016_exec()
             sb = read_x32(mod);
             Src.u32 = read_x32(mod + 8);
             Data.CurrentAddress = Src.u32 + temp3;
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case BICPSR:
          {
@@ -1485,21 +1446,22 @@ void n32016_exec()
             {
                if (Data.Info.Op[0].Size > sz8)
                {
-                  GOTO_TRAP(PrivilegedInstruction);
+                  SET_TRAP(PrivilegedInstruction);
+                  goto skip_write;
                }
             }
  
             psr &= ~Src.u32;
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case JUMP:
          {
             Data.CurrentAddress = Src.u32;
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case BISPSR:
          {
@@ -1507,38 +1469,39 @@ void n32016_exec()
             {
                if (Data.Info.Op[0].Size > sz8)
                {
-                  GOTO_TRAP(PrivilegedInstruction);
+                  SET_TRAP(PrivilegedInstruction);
+                  goto skip_write;
                }
             }
             
             psr |= Src.u32;
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case ADJSP:
          {
             SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32);
             DEC_SP(Src.u32);
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case JSR:
          {
             pushd(Data.CurrentAddress);
             Data.CurrentAddress = Src.u32;
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case CASE:
          {
             SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32);
             Data.CurrentAddress = Data.StartAddress + Src.u32;
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          // Format 4
 
@@ -1551,9 +1514,9 @@ void n32016_exec()
          case CMP:
          {
             CompareCommon(Src.u32, Dst.u32);
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case BIC:
          {
@@ -1611,13 +1574,13 @@ void n32016_exec()
             if (gentype[1] == TOS)
             {
                PiWARN("TBIT with base==TOS is not yet implemented\n");
-               continue; // with next instruction
+               goto skip_write; // with next instruction
             }
 
             F_FLAG = TEST(Dst.u32 & Src.u32);
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case XOR:
          {
@@ -1632,7 +1595,7 @@ void n32016_exec()
             if (r[0] == 0)
             {
                F_FLAG = 0;
-               continue;
+               goto skip_write;
             }
 
             uint32_t temp = read_n(r[1], Data.Info.Op[0].Size);
@@ -1644,23 +1607,23 @@ void n32016_exec()
 
             if (StringMatching(Data.OpCode, temp))
             {
-               continue;
+               goto skip_write;
             }
 
             write_Arbitary(r[2], &temp, Data.Info.Op[0].Size);
 
             StringRegisterUpdate(Data.OpCode);
             Data.CurrentAddress = Data.StartAddress; // Not finsihed so come back again!
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case CMPS:
          {
             if (r[0] == 0)
             {
                F_FLAG = 0;
-               continue;
+               goto skip_write;
             }
 
             uint32_t temp = read_n(r[1], Data.Info.Op[0].Size);
@@ -1672,40 +1635,41 @@ void n32016_exec()
 
             if (StringMatching(Data.OpCode, temp))
             {
-               continue;
+               goto skip_write;
             }
 
             temp2 = read_n(r[2], Data.Info.Op[0].Size);
 
             if (CompareCommon(temp, temp2) == 0)
             {
-               continue;
+               goto skip_write;
             }
 
             StringRegisterUpdate(Data.OpCode);
             Data.CurrentAddress = Data.StartAddress;                                               // Not finsihed so come back again!
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case SETCFG:
          {
             if (U_FLAG)
             {
-               GOTO_TRAP(PrivilegedInstruction);
+               SET_TRAP(PrivilegedInstruction);
+               goto skip_write;
             }
 
             nscfg.lsb = (Data.OpCode >> 15);                                  // Only sets the bottom 8 bits of which the lower 4 are used!
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case SKPS:
          {
             if (r[0] == 0)
             {
                F_FLAG = 0;
-               continue;
+               goto skip_write;
             }
 
             uint32_t temp = read_n(r[1], Data.Info.Op[0].Size);
@@ -1718,14 +1682,14 @@ void n32016_exec()
 
             if (StringMatching(Data.OpCode, temp))
             {
-               continue;
+               goto skip_write;
             }
 
             StringRegisterUpdate(Data.OpCode);
             Data.CurrentAddress = Data.StartAddress; // Not finsihed so come back again!
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          // Format 6
 
@@ -1936,9 +1900,9 @@ void n32016_exec()
                temp--;
             }
 
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case CMPM:
          {
@@ -1960,9 +1924,9 @@ void n32016_exec()
                Dst.u32 += temp4;
             }
 
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case INSS:
          {
@@ -1990,7 +1954,7 @@ void n32016_exec()
             if (gentype[0] == TOS)
             {
                PiWARN("EXTS with base==TOS is not yet implemented\n");
-               continue; // with next instruction
+               goto skip_write; // with next instruction
             }
 
             // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
@@ -2060,7 +2024,8 @@ void n32016_exec()
             int size = Data.Info.Op[0].Size << 3;                      // 8, 16  or 32 
             if (Src.u32 == 0)
             {
-               GOTO_TRAP(DivideByZero);
+               SET_TRAP(DivideByZero);
+               goto skip_write;
             }
 
             switch (Data.Info.Op[0].Size)
@@ -2089,7 +2054,8 @@ void n32016_exec()
          {
             if (Src.u32 == 0)
             {
-               GOTO_TRAP(DivideByZero);
+               SET_TRAP(DivideByZero);
+               goto skip_write;
             }
 
             switch (Data.Info.Op[0].Size)
@@ -2113,7 +2079,8 @@ void n32016_exec()
          {
             if (Src.u32 == 0)
             {
-               GOTO_TRAP(DivideByZero);
+               SET_TRAP(DivideByZero);
+               goto skip_write;
             }
 
             switch (Data.Info.Op[0].Size)
@@ -2137,7 +2104,8 @@ void n32016_exec()
          {
             if (Src.u32 == 0)
             {
-               GOTO_TRAP(DivideByZero);
+               SET_TRAP(DivideByZero);
+               goto skip_write;
             }
 
             Dst.u32 = mod_operator(Dst.u32, Src.u32);
@@ -2148,7 +2116,8 @@ void n32016_exec()
          {
             if (Src.u32 == 0)
             {
-               GOTO_TRAP(DivideByZero);
+               SET_TRAP(DivideByZero);
+               goto skip_write;
             }
 
             Dst.u32 = div_operator(Dst.u32, Src.u32);
@@ -2167,7 +2136,7 @@ void n32016_exec()
             if (Disp < 1 || Disp > 32)
             {
                PiWARN("EXT with length %08"PRIx32" is undefined\n", Disp);
-               continue; // with next instruction
+               goto skip_write; // with next instruction
             }
 
             if (gentype[0] == TOS)
@@ -2181,7 +2150,7 @@ void n32016_exec()
                // 2. We potentially need to take account of an offset.
                //
                PiWARN("EXT with base==TOS is not yet implemented; offset = %"PRId32"\n", Offset);
-               continue; // with next instruction
+               goto skip_write; // with next instruction
             }
             else if (gentype[0] == Register)
             {
@@ -2226,7 +2195,7 @@ void n32016_exec()
             if (Disp < 1 || Disp > 32)
             {
                PiWARN("INS with length %08"PRIx32" is undefined\n", Disp);
-               continue; // with next instruction
+               goto skip_write; // with next instruction
             }
 
             if (gentype[1] == TOS)
@@ -2243,7 +2212,7 @@ void n32016_exec()
                // for an offset. It's also not clear what this means.
                //
                PiWARN("INS with base==TOS is not yet implemented; offset = %"PRId32"\n", Offset);
-               continue; // with next instruction
+               goto skip_write; // with next instruction
             }
             else if (gentype[1] == Register)
             {
@@ -2314,9 +2283,9 @@ void n32016_exec()
                F_FLAG = 1;
             }
 
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case INDEX:
          {
@@ -2328,9 +2297,9 @@ void n32016_exec()
             Src.u32 += 1;                       // (length+1)
 
             r[(Data.OpCode >> 11) & 7] = (temp * Src.u32) + Dst.u32;
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case FFS:
          {
@@ -2375,9 +2344,9 @@ void n32016_exec()
          case LFSR:
          {
             FSR = Src.u32;
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
 
          case MOVLF:
          {
@@ -2477,9 +2446,9 @@ void n32016_exec()
                Z_FLAG = TEST(Src.f32 == Dst.f32);
                N_FLAG = TEST(Src.f32 >  Dst.f32);
             }
-            continue;
+            goto skip_write;
          }
-         // No break due to continue
+         // No break due to goto
  
          case SUBf:
          {
@@ -2546,14 +2515,31 @@ void n32016_exec()
          }
          break;
   
+         case LOGB:
+         {
+            if (Data.Info.Op[0].Size == sz64)
+            {
+               Dst64.f64 = log2(Src64.f64);
+            }
+            else
+            {
+               Dst.f32 = log2f(Src.f32);
+            }
+         }
+         break;
+        
          default:
          {
             if (Data.Function < TRAP)
             {
-               GOTO_TRAP(UnknownInstruction);
+               SET_TRAP(UnknownInstruction);
+            }
+            else
+            { 
+               SET_TRAP(UnknownFormat);         // Probably already set but belt and braces here!
             }
 
-            GOTO_TRAP(UnknownFormat);         // Probably already set but belt and braces here!
+            goto skip_write;
          }
          // No break due to goto
       }
@@ -2585,13 +2571,6 @@ void n32016_exec()
                   case sz32:  *((uint32_t*)  genaddr[WriteIndex]) = Dst.u32;  break;
                   case sz64:  *((uint64_t*)  genaddr[WriteIndex]) = Dst64.u64;  break;
                }
-
-#if 1
-               if (WriteSize <= sz32)
-               {
-                  ShowRegisterWrite(Data.Regs[WriteIndex], Truncate(Dst.u32, WriteSize));
-               }
-#endif
             }
             break;
 
@@ -2610,24 +2589,77 @@ void n32016_exec()
 
             case OpImmediate:
             {
-               GOTO_TRAP(IllegalWritingImmediate);
-               goto DoTrap;
+               SET_TRAP(IllegalWritingImmediate);
             }
+            break;
          }
       }
 
-#if 0
-      if (Data.Info.Op[0].Class & 0x80)
+      skip_write:
+
+      if (TrapFlags)
       {
-         if (Data.Info.Op[0].Size == sz32)
-         { 
-            n32016_ShowRegs(BIT(2));
+         uint32_t Index = 1;
+         uint32_t Pattern = TrapFlags;
+
+         while (Pattern)
+         {
+            if (Pattern & 1)
+            {
+               switch (Index)
+               {
+                  case BreakPointHit:
+                  {
+                     BreakPoint(&Data);
+
+                     if (Data.CurrentAddress == PR.BPC)
+                     {
+                        SET_TRAP(BreakPointTrap);
+                     }
+                  }
+                  break;
+
+                  case INSTRUCTION_PROFILING:
+                  {
+                     IP[Data.StartAddress]++;
+                  }
+                  break;
+
+                  case PROFILING:
+                  {
+                     ProfileAdd(&Data);
+                  }
+                  break;
+
+                  case SHOW_INSTRUCTIONS:
+                  {
+                     DecodeData This;
+                     This.CurrentAddress = Data.StartAddress;
+                     Decode(&This);
+                     ShowInstruction(&This);
+                  }
+                  break;
+
+                  case SHOW_WRITES:
+                  {
+                     ShowRegisterWrite(Data.Regs[WriteIndex], (WriteSize <= sz32) ? Truncate(Dst.u32, WriteSize) : Dst64.u64);
+                  }
+                  break;
+
+                  default:
+                  {
+                     HandleTrap();
+                     //CLEAR_TRAP();
+                  }
+                  break;
+               }
+            }  
+
+            Pattern >>= 1;
+            Index <<= 1;
          }
-         else
-         { 
-            n32016_ShowRegs(BIT(3));
-         }
+
+         CLEAR_TRAP();
       }
-#endif
    }
 }

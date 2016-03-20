@@ -18,6 +18,7 @@
 #include "mem32016.h"
 #include "Profile.h"
 #include "Trap.h"
+#include "NDis.h"
 
 
 #define HEX24 "x'%06"   PRIX32
@@ -46,9 +47,8 @@ const char LPRLookUp[16][20] =
    "MOD"
 };
 
-#ifdef INSTRUCTION_PROFILING
+
 uint32_t IP[MEG16];
-#endif
 
 void AddStringFlags(DecodeData* This)
 {
@@ -490,7 +490,8 @@ void AddASCII(DecodeData* This)
    }
 }
 
-#ifdef SHOW_INSTRUCTIONS
+//#ifdef SHOW_INSTRUCTIONS
+#if 1
 void ShowInstruction(DecodeData* This)
 {
    static uint32_t old_pc = 0xFFFFFFFF;
@@ -665,10 +666,7 @@ void ShowInstruction(DecodeData* This)
          if ((This->StartAddress == 0x1CA8) || (This->StartAddress == 0x1CBD))
 #endif
          {
-
-#ifdef INSTRUCTION_PROFILING
             DisassembleUsingITrace(0, 0x10000);
-#endif
 
             n32016_dumpregs("Test Suite Complete!\n");
             exit(1);
@@ -690,7 +688,7 @@ void ShowInstruction(DecodeData* This)
 }
 #endif
 
-void ShowRegisterWrite(RegLKU RegIn, uint32_t Value)
+void ShowRegisterWrite(RegLKU RegIn, uint64_t Value)
 {
    if (RegIn.OpType < 8)
    {
@@ -718,7 +716,6 @@ void ShowRegisterWrite(RegLKU RegIn, uint32_t Value)
    }
 }
 
-#ifdef INSTRUCTION_PROFILING
 #define BYTE_COUNT 10
 
 void DisassembleUsingITrace(uint32_t Location, uint32_t End)
@@ -760,7 +757,6 @@ void DisassembleUsingITrace(uint32_t Location, uint32_t End)
       }
    }
 }
-#endif
 
 void Disassemble(uint32_t Location, uint32_t End)
 {

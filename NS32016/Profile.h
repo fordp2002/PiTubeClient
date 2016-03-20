@@ -1,7 +1,8 @@
-#ifdef PROFILING
+//#ifdef PROFILING
+#if 1
 
 extern void ProfileInit(void);
-extern void ProfileAdd(uint32_t Function, uint16_t Regs0, uint16_t Regs1);
+extern void ProfileAdd(DecodeData* This);
 extern void ProfileDump(void);
 
 #else

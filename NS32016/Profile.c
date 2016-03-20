@@ -12,7 +12,7 @@
 #include "NDis.h"
 #include "Profile.h"
 
-#ifdef PROFILING
+#if 1
 
 #define NUM_OPERAND_TYPES 80
 
@@ -73,13 +73,13 @@ uint16_t processOperand(uint16_t operand)
    }
 }
 
-void ProfileAdd(uint32_t Function, uint16_t Regs0, uint16_t Regs1)
+void ProfileAdd(DecodeData* This)
 {
-   if (Function < InstructionCount)
+   if (This->Function < InstructionCount)
    {
-      Regs0 = processOperand(Regs0);
-      Regs1 = processOperand(Regs1);
-      Frequencies[Function][Regs0][Regs1]++;
+      uint16_t Regs0 = processOperand(This->Regs[0].Whole);
+      uint16_t Regs1 = processOperand(This->Regs[1].Whole);
+      Frequencies[This->Function][Regs0][Regs1]++;
    }
 }
 

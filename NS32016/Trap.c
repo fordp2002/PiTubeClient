@@ -11,7 +11,11 @@
 #include "Trap.h"
 #include "Profile.h"
 
-uint32_t TrapFlags;
+#ifdef PC_SIMULATION
+uint32_t TrapFlags = SHOW_INSTRUCTIONS;
+#else
+uint32_t TrapFlags = 0;
+#endif
 
 const char TrapText[TrapCount][40] =
 {

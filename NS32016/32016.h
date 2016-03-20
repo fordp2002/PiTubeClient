@@ -271,22 +271,8 @@ extern int32_t GetDisplacement(DecodeData* This);
 extern ProcessorRegisters PR;
 extern uint32_t r[8];
 
-extern void Disassemble(uint32_t Location, uint32_t End);
-
-#ifdef INSTRUCTION_PROFILING
-extern void DisassembleUsingITrace(uint32_t Location, uint32_t End);
-extern uint32_t IP[MEG16];
-#endif
-
-
-#ifdef SHOW_INSTRUCTIONS
-extern void ShowInstruction(DecodeData* This);
-#else
-#define ShowInstruction(...)
-#endif
-
 #if 1
-extern void ShowRegisterWrite(RegLKU RegIn, uint32_t Value);
+
 #else
 #define ShowRegisterWrite(...)
 #endif
