@@ -31,15 +31,7 @@ uint32_t r[8];
 FloatingPointRegisters FR;
 uint32_t FSR;
 uint32_t sp[2];
-
 Temp64Type Immediate64;
-
-#ifdef PC_SIMULATION
-uint32_t Trace = 1;
-#else
-uint32_t Trace = 0;
-#endif
-
 DecodeData Data;
 uint32_t genaddr[2];
 int gentype[2];
@@ -339,18 +331,14 @@ static void GetGenPhase2(RegLKU gen, int c)
       if (gen.OpType == Immediate)
       {
          MultiReg temp3;
+         temp3.u32 = SWAP32(read_x32(Data.CurrentAddress));
 
          if (Data.Info.Op[c].Size == sz64)
          {
-            temp3.u32 = SWAP32(read_x32(Data.CurrentAddress));
-            Immediate64.u64 = (((uint64_t) temp3.u32) << 32);
-            temp3.u32 = SWAP32(read_x32(Data.CurrentAddress + 4));
-            Immediate64.u64 |= temp3.u32;
+            Immediate64.u64 = (((uint64_t) temp3.u32) << 32) | SWAP32(read_x32(Data.CurrentAddress + 4));
          }
          else
          {
-            // Why can't they just decided on an endian and then stick to it?
-            temp3.u32 = SWAP32(read_x32(Data.CurrentAddress));
             if (Data.Info.Op[c].Size == sz8)
                genaddr[c] = temp3.u8;
             else if (Data.Info.Op[c].Size == sz16)

@@ -12,7 +12,7 @@
 #include "Profile.h"
 
 #ifdef PC_SIMULATION
-uint32_t TrapFlags = SHOW_INSTRUCTIONS;
+uint32_t TrapFlags = SHOW_WRITES | SHOW_INSTRUCTIONS;
 #else
 uint32_t TrapFlags = 0;
 #endif
@@ -20,7 +20,13 @@ uint32_t TrapFlags = 0;
 const char TrapText[TrapCount][40] =
 {
    "Break Point Hit",
-   "Break Point Trap",
+   "INSTRUCTION_PROFILING",
+   "PROFILING",
+   "SHOW_INSTRUCTIONS",
+   "SHOW_WRITES",
+   "",
+   "",
+   "",
    "Reserved Addressing Mode",
    "Unknown Format",
    "Unknown Instruction",
@@ -31,7 +37,8 @@ const char TrapText[TrapCount][40] =
    "Illegal SpecialWriting",
    "Illegal Writing Immediate",
    "Flag Instuction",
-   "Privileged Instruction"
+   "Privileged Instruction",
+   "BreakPointTrap"
 };
 
 void ShowTraps(void)
@@ -55,7 +62,10 @@ void Dump(void)
    ShowTraps();
    TrapTRACE("\n");
 
-   ProfileDump();
+   if (Trap & PROFILING)
+   {
+      ProfileDump();
+   }
 }
 
 void n32016_dumpregs(char* pMessage)

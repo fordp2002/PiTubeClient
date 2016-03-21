@@ -666,7 +666,7 @@ void ShowInstruction(DecodeData* This)
          if ((This->StartAddress == 0x1CA8) || (This->StartAddress == 0x1CBD))
 #endif
          {
-            DisassembleUsingITrace(0, 0x10000);
+            //DisassembleUsingITrace(0, 0x10000);
 
             n32016_dumpregs("Test Suite Complete!\n");
             exit(1);

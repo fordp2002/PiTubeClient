@@ -26,7 +26,7 @@ enum TrapTypes
    BreakPointTrap          = BIT(19)
 };
 
-#define TrapCount 13
+#define TrapCount 20
 extern uint32_t TrapFlags;
 #define CLEAR_TRAP() TrapFlags &= 0xFF
 
