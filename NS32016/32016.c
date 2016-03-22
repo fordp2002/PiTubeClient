@@ -149,7 +149,7 @@ int32_t GetDisplacement(DecodeData* This)
    int32_t Value;
 
    MultiReg Disp;
-   Disp.u32 = SWAP32(read_x32(This->CurrentAddress));
+   Disp.u32 = SWAP32(read_x32_direct(This->CurrentAddress));
 
    switch (Disp.u32 >> 29)
       // Look at the top 3 bits
@@ -331,11 +331,11 @@ static void GetGenPhase2(RegLKU gen, int c)
       if (gen.OpType == Immediate)
       {
          MultiReg temp3;
-         temp3.u32 = SWAP32(read_x32(Data.CurrentAddress));
+         temp3.u32 = SWAP32(read_x32_direct(Data.CurrentAddress));
 
          if (Data.Info.Op[c].Size == sz64)
          {
-            Immediate64.u64 = (((uint64_t) temp3.u32) << 32) | SWAP32(read_x32(Data.CurrentAddress + 4));
+            Immediate64.u64 = (((uint64_t) temp3.u32) << 32) | SWAP32(read_x32_direct(Data.CurrentAddress + 4));
          }
          else
          {
@@ -2587,54 +2587,56 @@ void n32016_exec()
          // No break due to goto
       }
 
-      uint32_t WriteIndex = ((Data.Function >> 4) == Format2) ? 0 : 1;
-      uint32_t WriteSize = Data.Info.Op[WriteIndex].Size;
-      if (WriteSize && (WriteSize <= sz64))
       {
-         switch (gentype[WriteIndex])
+         uint32_t WriteIndex = ((Data.Function >> 4) == Format2) ? 0 : 1;
+         uint32_t WriteSize = Data.Info.Op[WriteIndex].Size;
+         if (WriteSize && (WriteSize <= sz64))
          {
-            case Memory:
+            switch (gentype[WriteIndex])
             {
-               switch (WriteSize)
+               case Memory:
                {
-                  case sz8:   write_x8( genaddr[WriteIndex], Dst.u32);  break;
-                  case sz16:  write_x16(genaddr[WriteIndex], Dst.u32);  break;
-                  case sz32:  write_x32(genaddr[WriteIndex], Dst.u32);  break;
-                  case sz64:  write_x64(genaddr[WriteIndex], Dst64.u64);  break;
+                  switch (WriteSize)
+                  {
+                     case sz8:   write_x8( genaddr[WriteIndex], Dst.u32);  break;
+                     case sz16:  write_x16(genaddr[WriteIndex], Dst.u32);  break;
+                     case sz32:  write_x32(genaddr[WriteIndex], Dst.u32);  break;
+                     case sz64:  write_x64(genaddr[WriteIndex], Dst64.u64);  break;
+                  }
                }
-            }
-            break;
+               break;
             
-            case Register:
-            {
-               switch (WriteSize)
+               case Register:
                {
-                  case sz8:   *((uint8_t*)   genaddr[WriteIndex]) = Dst.u32;  break;
-                  case sz16:  *((uint16_t*)  genaddr[WriteIndex]) = Dst.u32;  break;
-                  case sz32:  *((uint32_t*)  genaddr[WriteIndex]) = Dst.u32;  break;
-                  case sz64:  *((uint64_t*)  genaddr[WriteIndex]) = Dst64.u64;  break;
+                  switch (WriteSize)
+                  {
+                     case sz8:   *((uint8_t*)   genaddr[WriteIndex]) = Dst.u32;  break;
+                     case sz16:  *((uint16_t*)  genaddr[WriteIndex]) = Dst.u32;  break;
+                     case sz32:  *((uint32_t*)  genaddr[WriteIndex]) = Dst.u32;  break;
+                     case sz64:  *((uint64_t*)  genaddr[WriteIndex]) = Dst64.u64;  break;
+                  }
                }
-            }
-            break;
+               break;
 
-            case TOS:
-            {
-               if (WriteSize == sz64)
+               case TOS:
                {
-                  PushArbitary(Dst64.u64, WriteSize);
+                  if (WriteSize == sz64)
+                  {
+                     PushArbitary(Dst64.u64, WriteSize);
+                  }
+                  else
+                  {
+                     PushArbitary(Dst.u32, WriteSize);
+                  }
                }
-               else
-               {
-                  PushArbitary(Dst.u32, WriteSize);
-               }
-            }
-            break;
+               break;
 
-            case OpImmediate:
-            {
-               SET_TRAP(IllegalWritingImmediate);
+               case OpImmediate:
+               {
+                  SET_TRAP(IllegalWritingImmediate);
+               }
+               break;
             }
-            break;
          }
       }
 
@@ -2687,7 +2689,13 @@ void n32016_exec()
 
                   case SHOW_WRITES:
                   {
-                     ShowRegisterWrite(Data.Regs[WriteIndex], (WriteSize <= sz32) ? Truncate(Dst.u32, WriteSize) : Dst64.u64);
+                     uint32_t Index = ((Data.Function >> 4) == Format2) ? 0 : 1;
+                                   
+                     if ((Data.Info.Op[Index].Class == write >> 8) || (Data.Info.Op[Index].Class == (rmw >> 8)))
+                     {
+                        uint32_t Size = Data.Info.Op[Index].Size;
+                        ShowRegisterWrite(Data.Regs[Index], (Size <= sz32) ? Truncate(Dst.u32, Size) : Dst64.u64);
+                     }
                   }
                   break;
 

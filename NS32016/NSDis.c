@@ -703,7 +703,7 @@ void ShowRegisterWrite(RegLKU RegIn, uint64_t Value)
 #ifdef TEST_SUITE
       if (RegIn.OpType == 7)
       {
-         PiTRACE("*** TEST = %u\n", Value);
+         PiTRACE("*** TEST = %llu\n", Value);
 
 #if 0
          if (Value == 137)

@@ -493,7 +493,7 @@ uint32_t Decode(DecodeData* This)
    uint32_t Trap           = NoIssue;
    This->StartAddress      = This->CurrentAddress;
    uint32_t OpCode         =
-   This->OpCode            = read_x32(This->StartAddress);
+   This->OpCode            = read_x32_direct(This->StartAddress);
    This->Function          = FunctionLookup[This->OpCode & 0xFF];
    uint32_t Format         = This->Function >> 4;
 
