@@ -27,8 +27,10 @@ extern void write_x64(uint32_t addr, uint64_t val);
 extern void write_Arbitary(uint32_t addr, void* pData, uint32_t Size);
 
 #if 1
-#define read_x32_direct(addr) *((uint32_t*) (ns32016ram + addr))
+#define read_x8_direct(addr)     *(ns32016ram + addr)
+#define read_x32_direct(addr)    *((uint32_t*) (ns32016ram + addr))
 uint8_t ns32016ram[MEG16];
 #else
+#define read_x8_direct  read_x8
 #define read_x32_direct read_x32
 #endif

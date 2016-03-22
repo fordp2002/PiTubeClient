@@ -330,6 +330,14 @@ static void GetGenPhase2(RegLKU gen, int c)
 
       if (gen.OpType == Immediate)
       {
+         gentype[c] = OpImmediate;
+
+         if (Data.Info.Op[c].Size == sz8)
+         {
+            genaddr[c] = Consume_x8(&Data);
+            return;
+         }
+                
          MultiReg temp3;
          temp3.u32 = SWAP32(read_x32_direct(Data.CurrentAddress));
 
@@ -339,16 +347,10 @@ static void GetGenPhase2(RegLKU gen, int c)
          }
          else
          {
-            if (Data.Info.Op[c].Size == sz8)
-               genaddr[c] = temp3.u8;
-            else if (Data.Info.Op[c].Size == sz16)
-               genaddr[c] = temp3.u16;
-            else
-               genaddr[c] = temp3.u32;
+            genaddr[c] = (Data.Info.Op[c].Size == sz32) ? temp3.u32 : temp3.u16;
          }
 
          Data.CurrentAddress += Data.Info.Op[c].Size;
-         gentype[c] = OpImmediate;
          return;
       }
 

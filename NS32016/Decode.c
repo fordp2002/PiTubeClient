@@ -447,7 +447,7 @@ const uint32_t OpFlags[InstructionCount] =
 
 uint8_t Consume_x8(DecodeData* This)
 {
-   return read_x8(This->CurrentAddress++);
+   return read_x8_direct(This->CurrentAddress++);
 }
 
 void SetSize(DecodeData* This, uint32_t Size)
