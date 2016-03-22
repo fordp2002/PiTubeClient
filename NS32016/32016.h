@@ -7,6 +7,7 @@
 #define MEG2      0x0200000
 #define MEG4      0x0400000
 #define MEG8      0x0800000
+#define MEG10     0x0A00000
 #define MEG15     0x0F00000
 #define MEG16     0x1000000
 
@@ -235,12 +236,26 @@ typedef union
 #define mod          PR.MOD.Whole
 #define nscfg        PR.CFG
 
+#define NEW_SP_METHOD
+#ifdef NEW_SP_METHOD
+#define STACK_P      PR.SP
+#define UPDATE_SP()  if (old_sp_index != S_FLAG) \
+{\
+   sp[old_sp_index] = PR.SP; \
+   PR.SP = sp[S_FLAG]; \
+   old_sp_index = S_FLAG; \
+}
 
+#define SET_USER_SP(in) if (old_sp_index == 1) STACK_P = (in);  else sp[1] = (in)
+#define GET_USER_SP() (old_sp_index == 1) ? STACK_P : sp[1]
 
-extern uint32_t sp[2];
+#else
+#define STACK_P               sp[S_FLAG]
+#define UPDATE_SP()
+#define SET_USER_SP(in)       sp[1] = (in)
+#define GET_USER_SP()         sp[1]
+#endif
 
-#define STACK_P      sp[S_FLAG]
-//#define STACK_P      PR.SP
 #define SET_SP(in)   STACK_P = (in);     PrintSP("Set SP:");
 #define INC_SP(in)   STACK_P += (in);    PrintSP("Inc SP:");
 #define DEC_SP(in)   STACK_P -= (in);    PrintSP("Dec SP:");

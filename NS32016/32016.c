@@ -24,6 +24,10 @@
 //#define OLD_INSTRUCTION_TRACE
 #define CXP_UNUSED_WORD 0xAAAA
 
+#ifdef NEW_SP_METHOD
+uint32_t old_sp_index;
+#endif
+
 int nsoutput = 0;
 
 ProcessorRegisters PR;
@@ -100,8 +104,13 @@ void n32016_reset_addr(uint32_t StartAddress)
 {
    n32016_build_matrix();
 
-   Data.CurrentAddress = StartAddress;
-   psr = 0;
+   Data.CurrentAddress  = StartAddress;
+
+#ifdef NEW_SP_METHOD
+   old_sp_index         = 0;
+#endif
+
+   psr                  = 0;
 
    //PR.BPC = 0x20F; //Example Breakpoint
    PR.BPC = 0xFFFFFFFF;
@@ -927,6 +936,7 @@ void TakeInterrupt(uint32_t IntBase)
    uint32_t temp2, temp3;
 
    psr &= ~0xF00;
+   UPDATE_SP();
    pushd((temp << 16) | mod);
    
    while (read_x8(Data.CurrentAddress) == 0xB2)                                    // Do not stack the address of a WAIT instruction!
@@ -968,6 +978,7 @@ uint32_t ReturnCommon(void)
    }
 
    psr = popw();
+   UPDATE_SP();
 
    if (nscfg.de_flag == 0)
    {
@@ -1014,61 +1025,63 @@ void n32016_exec()
       ShowInstruction(&This);
 #endif
 
-      GetGenPhase2(Data.Regs[0], 0);
-      GetGenPhase2(Data.Regs[1], 1);
-
-      switch (Data.Info.Op[0].Class & 0x0F)
+      if (Data.Info.Whole)
       {
-         case read >> 8:
-         case rmw >> 8:
+         GetGenPhase2(Data.Regs[0], 0);
+         GetGenPhase2(Data.Regs[1], 1);
+
+         switch (Data.Info.Op[0].Class & 0x0F)
          {
-            if (Data.Info.Op[0].Size == sz64)
+            case read >> 8:
+            case rmw >> 8:
             {
-               Src64.u64 = ReadGen64(0);
+               if (Data.Info.Op[0].Size == sz64)
+               {
+                  Src64.u64 = ReadGen64(0);
+               }
+               else
+               {
+                  Src.u32 = ReadGen(0);
+               }
             }
-            else
+            break;
+
+            case addr >> 8:
             {
-               Src.u32 = ReadGen(0);
+               Src.u32 = ReadAddress(0);
+            }
+            break;
+
+            case Regaddr >> 8:
+            {
+               Src.u32 = BitPrefix();
             }
          }
-         break;
 
-         case addr >> 8:
+         switch (Data.Info.Op[1].Class & 0x0F)
          {
-            Src.u32 = ReadAddress(0);
-         }
-         break;
+            case read >> 8:
+            case rmw >> 8:
+            {
+               if (Data.Info.Op[1].Size == sz64)
+               {
+                  Dst64.u64 = ReadGen64(1);
+               }
+               else
+               {
+                  Dst.u32 = ReadGen(1);
+               }
+            }
+            break;
 
-         case Regaddr >> 8:
-         {
-            Src.u32 = BitPrefix();
+            case addr >> 8:
+            {
+               Dst.u32 = ReadAddress(1);
+            }
+            break;
          }
       }
-
-      switch (Data.Info.Op[1].Class & 0x0F)
-      {
-         case read >> 8:
-         case rmw >> 8:
-         {
-            if (Data.Info.Op[1].Size == sz64)
-            {
-               Dst64.u64 = ReadGen64(1);
-            }
-            else
-            {
-               Dst.u32 = ReadGen(1);
-            }
-         }
-         break;
-
-         case addr >> 8:
-         {
-            Dst.u32 = ReadAddress(1);
-         }
-         break;
-      }
-
-      if (Data.Function <= RETT)
+      else if (Data.Function <= RETT)
       {
          Disp = GetDisplacement(&Data);
       }
@@ -1260,6 +1273,7 @@ void n32016_exec()
          {
             uint32_t temp = psr;
             psr &= ~0x700;
+            UPDATE_SP();
             // In SVC, the address pushed is the address of the SVC opcode
             pushd((temp << 16) | mod);
             pushd(Data.StartAddress);
@@ -1316,7 +1330,7 @@ void n32016_exec()
             switch (temp2)
             {
                case 0x0:
-                  Dst.u32 = psr & 0xff;
+                  Dst.u32 = psr_lsb;
                break;
                case 0x8:
                   Dst.u32 = fp;
@@ -1328,7 +1342,7 @@ void n32016_exec()
                   Dst.u32 = sb;
                break;
                case 0xB:
-                  Dst.u32 = sp[1];       // returns the user stack pointer
+                  Dst.u32 = GET_USER_SP();       // returns the user stack pointer
                break;
                case 0xD:
                   Dst.u32 = psr;
@@ -1391,7 +1405,7 @@ void n32016_exec()
             {
                case 0:
                {
-                  psr = (psr & 0xFF00) | (Src.u32 & 0xFF);
+                  psr_lsb = Src.u32;
                }
                break;
 
@@ -1411,7 +1425,7 @@ void n32016_exec()
 
                case 11:
                {
-                  sp[1] = Src.u32;   // Sets the user stack pointer
+                  SET_USER_SP(Src.u32);   // Sets the user stack pointer
                }
                break;
 
@@ -1454,6 +1468,7 @@ void n32016_exec()
             }
  
             psr &= ~Src.u32;
+            UPDATE_SP();
             goto skip_write;
          }
          // No break due to goto
@@ -1477,6 +1492,7 @@ void n32016_exec()
             }
             
             psr |= Src.u32;
+            UPDATE_SP();
             goto skip_write;
          }
          // No break due to goto

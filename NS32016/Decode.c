@@ -490,7 +490,6 @@ static void getgen(DecodeData* This, int gen, int c)
 
 uint32_t Decode(DecodeData* This)
 {
-   uint32_t Trap           = NoIssue;
    This->StartAddress      = This->CurrentAddress;
    uint32_t OpCode         =
    This->OpCode            = read_x32_direct(This->StartAddress);
@@ -507,10 +506,10 @@ uint32_t Decode(DecodeData* This)
       case Format0:
       case Format1:
       {
-         This->Info.Whole = OpFlags[This->Function];
-         // Nothing here!
+         This->Info.Whole = 0;
+         return 0;
       }
-      break;
+      // No break due to return
 
       case Format2:
       {
@@ -557,6 +556,7 @@ uint32_t Decode(DecodeData* This)
          This->Function += ((OpCode >> 10) & 0x0F);
          This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode >> 8);
+         OpCode  >>= 8;
       }
       break;
 
@@ -599,6 +599,7 @@ uint32_t Decode(DecodeData* This)
 
          This->Info.Whole = OpFlags[This->Function];
          SetSize(This, OpCode >> 8);
+         OpCode >>= 8;
       }
       break;
 
@@ -628,8 +629,10 @@ uint32_t Decode(DecodeData* This)
 
          if (nscfg.fpu_flag == 0)
          {
-            Trap |= UnknownInstruction;
+           return UnknownInstruction;
          }
+
+         OpCode >>= 8;
       }
       break;
 
@@ -643,8 +646,10 @@ uint32_t Decode(DecodeData* This)
 
          if (nscfg.fpu_flag == 0)
          {
-            Trap |= UnknownInstruction;
+            return UnknownInstruction;
          }
+
+         OpCode >>= 8;
       }
       break;
 
@@ -652,20 +657,17 @@ uint32_t Decode(DecodeData* This)
       {
          This->Function += ((OpCode >> 10) & 0x0F);
          This->Info.Whole = OpFlags[This->Function];
+         OpCode >>= 8;
       }
       break;
 
       default:
       {
-         Trap = UnknownFormat;
-         This->Info.Whole = 0;
-      }
-      break;
-   }
 
-   if (Format >= Format6)
-   {
-      OpCode >>= 8;
+         This->Info.Whole = 0;
+         return UnknownFormat;
+      }
+      // No break due to return
    }
 
    if (This->Info.Op[0].Class)
@@ -678,5 +680,5 @@ uint32_t Decode(DecodeData* This)
       getgen(This, OpCode >> 6, 1);
    }
 
-   return Trap;
+   return NoIssue;
 }
