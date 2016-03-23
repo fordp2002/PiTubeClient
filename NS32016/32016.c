@@ -988,18 +988,6 @@ void n32016_exec()
    Temp64Type Src64, Dst64;
    int32_t Disp;
 
-   if (tube_irq & 2)
-   {
-      // NMI is edge sensitive, so it should be cleared here
-      tube_irq &= ~2;
-      TakeInterrupt(intbase + (1 * 4));
-   }
-   else if ((tube_irq & 1) && (psr & 0x800))
-   {
-      // IRQ is level sensitive, so the called should maintain the state
-      TakeInterrupt(intbase);
-   }
-
    while (tubecycles > 0)
    {
       tubecycles -= 8;
@@ -2664,6 +2652,24 @@ void n32016_exec()
             {
                switch (Index)
                {
+                  case NMI:
+                  {
+                     // NMI is edge sensitive, so it should be cleared here
+                     TrapFlags &= ~NMI;
+                     TakeInterrupt(intbase + (1 * 4));
+                  }
+                  break;
+
+                  case IRQ:
+                  {
+                     if (psr & 0x800)
+                     {
+                        // IRQ is level sensitive, so the called should maintain the state
+                        TakeInterrupt(intbase);
+                     }
+                  }
+                  break;
+
                   case BreakPointHit:
                   {
                      BreakPoint(&Data);

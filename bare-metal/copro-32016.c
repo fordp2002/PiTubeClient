@@ -19,6 +19,7 @@
 #include "rpi-interrupts.h"
 #include "../NS32016/defs.h"
 #include "../NS32016/Decode.h"
+#include "../NS32016/Trap.h"
 #include "../NS32016/32016.h"
 #include "../NS32016/mem32016.h"
 
@@ -101,17 +102,17 @@ void copro_32016_main(unsigned int r0, unsigned int r1, unsigned int atags)
       // IRQ is level sensitive
       if ((gpio & IRQ_PIN_MASK) == 0)
       {
-         tube_irq |= 1; // IRQ is Active
+         SET_TRAP(IRQ); // NMI is Active
       }
       else
       {
-         tube_irq &= ~1; // IRQ is No Longer Active
+         TRAP &= ~IRQ; // IRQ is No Longer Active
       }
 
       // NMI is edge sensitive
       if ((gpio & NMI_PIN_MASK) == 0 && (last_gpio & NMI_PIN_MASK) != 0)
       {
-         tube_irq |= 2; // NMI is Active
+         SET_TRAP(NMI); // NMI is Active
       }
 
       last_gpio = gpio;

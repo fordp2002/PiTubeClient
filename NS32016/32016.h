@@ -301,7 +301,6 @@ extern FILE *pTraceFile;
 #define PiWARN(...)  { printf("pc=%08"PRIX32": ", Data.CurrentAddress); printf(__VA_ARGS__); }
 
 extern int tubecycles;
-extern int tube_irq;
 extern uint32_t genaddr[2];
 extern int gentype[2];
 extern const uint8_t FormatSizes[FormatCount + 1];

@@ -19,13 +19,13 @@ uint32_t TrapFlags = 0;
 
 const char TrapText[TrapCount][40] =
 {
+   "FIQ",
+   "IRQ",
    "Break Point Hit",
    "INSTRUCTION_PROFILING",
    "PROFILING",
    "SHOW_INSTRUCTIONS",
    "SHOW_WRITES",
-   "",
-   "",
    "",
    "Reserved Addressing Mode",
    "Unknown Format",

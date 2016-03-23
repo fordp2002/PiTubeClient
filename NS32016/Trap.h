@@ -5,11 +5,13 @@ enum TrapTypes
    NoIssue                 = 0,
    
    // These are features rather than traps
-   BreakPointHit           = BIT(0),
-   INSTRUCTION_PROFILING   = BIT(1),
-   PROFILING               = BIT(2),
-   SHOW_INSTRUCTIONS       = BIT(3),
-   SHOW_WRITES             = BIT(4),
+   NMI                     = BIT(0),
+   IRQ                     = BIT(1),
+   BreakPointHit           = BIT(2),
+   INSTRUCTION_PROFILING   = BIT(3),
+   PROFILING               = BIT(4),
+   SHOW_INSTRUCTIONS       = BIT(5),
+   SHOW_WRITES             = BIT(6),
 
    // These are geniune traps
    ReservedAddressingMode  = BIT(8),

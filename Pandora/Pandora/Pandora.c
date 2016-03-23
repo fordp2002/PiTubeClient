@@ -14,7 +14,6 @@ FILE* pTraceFile = NULL;
 #endif
 
 int tubecycles = 0;
-int tube_irq = 0;
 
 void tubeWrite(unsigned char Address, unsigned char Data)
 {
