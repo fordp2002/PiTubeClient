@@ -106,7 +106,7 @@ void copro_32016_main(unsigned int r0, unsigned int r1, unsigned int atags)
       }
       else
       {
-         TRAP &= ~IRQ; // IRQ is No Longer Active
+         TrapFlags &= ~IRQ; // IRQ is No Longer Active
       }
 
       // NMI is edge sensitive
