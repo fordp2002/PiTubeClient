@@ -257,7 +257,7 @@ uint32_t ReadGen(uint32_t c)
 
       case OpImmediate:
       {
-         return Truncate(genaddr[c], Data.Info.Op[c].Size);
+         return genaddr[c];
       }
       // No break due to return
    }
