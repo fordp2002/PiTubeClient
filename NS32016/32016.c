@@ -1815,6 +1815,23 @@ void n32016_exec()
          }
          break;
 
+#if 1
+         case ABS:
+         {
+            // Test from Daves post of the Sat Mar 12, 2016 9:26 pm
+            uint32_t c = 1 << ((Data.Info.Op[0].Size * 8) - 1);                                          // the sign bit
+            Dst.u32 = Src.u32;
+            if (Dst.u32 & c)
+            {
+               if (Dst.u32 == c)
+               {
+                  F_FLAG = 1;
+               }
+               Dst.u32 = -Dst.u32; // this should work even with temp being a uint32_t
+            }
+         }
+         break;
+#else
          case ABS:
          {
             Dst.u32 = Src.u32;
@@ -1861,6 +1878,7 @@ void n32016_exec()
             }
          }
          break;
+#endif
 
          case COM:
          {
