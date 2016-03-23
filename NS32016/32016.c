@@ -24,10 +24,6 @@
 //#define OLD_INSTRUCTION_TRACE
 #define CXP_UNUSED_WORD 0xAAAA
 
-#ifdef NEW_SP_METHOD
-uint32_t old_sp_index;
-#endif
-
 int nsoutput = 0;
 
 ProcessorRegisters PR;
@@ -106,11 +102,8 @@ void n32016_reset_addr(uint32_t StartAddress)
 
    Data.CurrentAddress  = StartAddress;
 
-#ifdef NEW_SP_METHOD
-   old_sp_index         = 0;
-#endif
-
    psr                  = 0;
+   UPDATE_SP();
 
    //PR.BPC = 0x20F; //Example Breakpoint
    PR.BPC = 0xFFFFFFFF;

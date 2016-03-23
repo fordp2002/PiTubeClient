@@ -267,6 +267,7 @@ typedef struct
    uint32_t       OpCode;
    RegLKU         Regs[2];
    OperandPair    Info;
+   uint32_t*      StackPointer;
 } DecodeData;
 
 typedef union

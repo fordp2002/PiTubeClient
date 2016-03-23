@@ -238,23 +238,16 @@ typedef union
 
 #define NEW_SP_METHOD
 #ifdef NEW_SP_METHOD
-#define STACK_P      PR.SP
-#define UPDATE_SP()  if (old_sp_index != S_FLAG) \
-{\
-   sp[old_sp_index] = PR.SP; \
-   PR.SP = sp[S_FLAG]; \
-   old_sp_index = S_FLAG; \
-}
-
-#define SET_USER_SP(in) if (old_sp_index == 1) STACK_P = (in);  else sp[1] = (in)
-#define GET_USER_SP() (old_sp_index == 1) ? STACK_P : sp[1]
+#define STACK_P      *Data.StackPointer
+#define UPDATE_SP()  Data.StackPointer = &sp[S_FLAG]
 
 #else
 #define STACK_P               sp[S_FLAG]
 #define UPDATE_SP()
+#endif
 #define SET_USER_SP(in)       sp[1] = (in)
 #define GET_USER_SP()         sp[1]
-#endif
+
 
 #define SET_SP(in)   STACK_P = (in);     PrintSP("Set SP:");
 #define INC_SP(in)   STACK_P += (in);    PrintSP("Inc SP:");
