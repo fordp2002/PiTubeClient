@@ -306,7 +306,6 @@ uint32_t ReadAddress(uint32_t c)
 static void GetGenPhase2(RegLKU gen, int c)
 {
    if (Data.Info.Op[c].Class)
-//   if (gen.Whole < 0xFFFF)                                              // Does this Operand exist ?
    {
       if (gen.OpType <= R7)
       {
