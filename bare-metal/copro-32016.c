@@ -102,7 +102,7 @@ void copro_32016_main(unsigned int r0, unsigned int r1, unsigned int atags)
       // IRQ is level sensitive
       if ((gpio & IRQ_PIN_MASK) == 0)
       {
-         SET_TRAP(IRQ); // NMI is Active
+         SET_TRAP(IRQ); // IRQ is Active
       }
       else
       {
