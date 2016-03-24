@@ -422,7 +422,10 @@ static void GetGenPhase2(RegLKU gen, int c)
 
          case TopOfStack:
             genaddr[c] = GET_SP();
-            gentype[c] = TOS;
+            if (((Data.Info.Op[c].Class & 0xF) == (read >> 8)) || ((Data.Info.Op[c].Class & 0xF) == (write >> 8)))
+            {
+               gentype[c] = TOS;          // TOS is only for read and write classes
+            }
             break;
 
          case FpRelative:
@@ -1012,8 +1015,8 @@ void n32016_exec()
 
          switch (Data.Info.Op[0].Class & 0x0F)
          {
-            case read >> 8:
-            case rmw >> 8:
+            case (read >> 8):
+            case (rmw >> 8):
             {
                if (Data.Info.Op[0].Size == sz64)
                {
@@ -1026,13 +1029,13 @@ void n32016_exec()
             }
             break;
 
-            case addr >> 8:
+            case (addr >> 8):
             {
                Src.u32 = ReadAddress(0);
             }
             break;
 
-            case Regaddr >> 8:
+            case (Regaddr >> 8):
             {
                Src.u32 = BitPrefix();
             }
@@ -1814,10 +1817,8 @@ void n32016_exec()
          }
          break;
 
-#if 1
          case ABS:
          {
-            // Test from Daves post of the Sat Mar 12, 2016 9:26 pm
             uint32_t c = 1 << ((Data.Info.Op[0].Size * 8) - 1);                                          // the sign bit
             Dst.u32 = Src.u32;
             if (Dst.u32 & c)
@@ -1826,58 +1827,10 @@ void n32016_exec()
                {
                   F_FLAG = 1;
                }
-               Dst.u32 = -Dst.u32; // this should work even with temp being a uint32_t
+               Dst.s32 = -Dst.s32;
             }
          }
          break;
-#else
-         case ABS:
-         {
-            Dst.u32 = Src.u32;
-            switch (Data.Info.Op[0].Size)
-            {
-               case sz8:
-               {
-                  if (Dst.u32 == 0x80)
-                  {
-                     F_FLAG = 1;
-                  }
-                  if (Dst.u32 & 0x80)
-                  {
-                     Dst.u32 = (Dst.u32 ^ 0xFF) + 1;
-                  }
-               }
-               break;
-
-               case sz16:
-               {
-                  if (Dst.u32 == 0x8000)
-                  {
-                     F_FLAG = 1;
-                  }
-                  if (Dst.u32 & 0x8000)
-                  {
-                     Dst.u32 = (Dst.u32 ^ 0xFFFF) + 1;
-                  }
-               }
-               break;
-
-               case sz32:
-               {
-                  if (Dst.u32 == 0x80000000)
-                  {
-                     F_FLAG = 1;
-                  }
-                  if (Dst.u32 & 0x80000000)
-                  {
-                     Dst.u32 = (Dst.u32 ^ 0xFFFFFFFF) + 1;
-                  }
-               }
-               break;
-            }
-         }
-         break;
-#endif
 
          case COM:
          {
