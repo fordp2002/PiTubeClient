@@ -14,9 +14,9 @@
 
 #ifdef PC_SIMULATION
 //uint32_t TrapFlags = INSTRUCTION_PROFILING | PROFILING | SHOW_WRITES | SHOW_INSTRUCTIONS;
-uint32_t TrapFlags = SHOW_WRITES | SHOW_INSTRUCTIONS;
+sig_atomic_t TrapFlags = SHOW_WRITES | SHOW_INSTRUCTIONS;
 #else
-uint32_t TrapFlags = 0;
+sig_atomic_t TrapFlags = 0;
 #endif
 
 const char TrapText[TrapCount][40] =

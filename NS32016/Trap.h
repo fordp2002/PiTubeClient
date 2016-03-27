@@ -1,3 +1,6 @@
+#include <signal.h>
+
+
 #define TrapTRACE printf
 
 enum TrapTypes
@@ -30,7 +33,7 @@ enum TrapTypes
 };
 
 #define TrapCount 21
-extern uint32_t TrapFlags;
+extern sig_atomic_t TrapFlags;
 #define CLEAR_TRAP() TrapFlags &= 0xFF
 
 // Use SET_TRAP when in a function
