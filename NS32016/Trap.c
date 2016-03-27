@@ -12,7 +12,7 @@
 #include "Profile.h"
 
 #ifdef PC_SIMULATION
-uint32_t TrapFlags = SHOW_WRITES | SHOW_INSTRUCTIONS;
+uint32_t TrapFlags = INSTRUCTION_PROFILING | PROFILING | SHOW_WRITES | SHOW_INSTRUCTIONS;
 #else
 uint32_t TrapFlags = 0;
 #endif
@@ -62,9 +62,14 @@ void Dump(void)
    ShowTraps();
    TrapTRACE("\n");
 
-   if (Trap & PROFILING)
+   if (TrapFlags & PROFILING)
    {
       ProfileDump();
+   }
+
+   if (TrapFlags & INSTRUCTION_PROFILING)
+   {
+      DisassembleUsingITrace(0, 0x1000);
    }
 }
 
