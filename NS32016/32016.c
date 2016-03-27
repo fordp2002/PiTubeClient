@@ -1955,7 +1955,7 @@ void n32016_exec()
 
          case MOVXiD:
          {
-            SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32); // Editor need the useless semicolon
+            SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32);                  // Editor need the useless semicolon
             Dst.u32 = Src.u32;
          }
          break;
@@ -1970,10 +1970,8 @@ void n32016_exec()
          {
             Dst64.u64 = Dst.u32;
             Dst64.u64 *= Src.u32;
-            // Handle the writing to the upper half of dst locally here
-            handle_mei_dei_upper_write(Dst64.u64);
-            // Allow fall through write logic to write the lower half of dst
-            Dst.u32 = (uint32_t) Dst64.u64;
+            handle_mei_dei_upper_write(Dst64.u64);                      // Handle the writing to the upper half of dst locally here
+            Dst.u32 = (uint32_t) Dst64.u64;                             // Allow fall through write logic to write the lower half of dst
          }
          break;
 
@@ -2097,14 +2095,12 @@ void n32016_exec()
                goto skip_write; // with next instruction
             }
 
-            if (gentype[0] == Register)
+            if (gentype[0] == Register)                                 // base is a register
             {
-               // base is a register
                StartBit = ((uint32_t) Offset) & 31;
             }
-            else
+            else                                                        // base is memory
             {
-               // base is memory
                genaddr[0] += OffsetDiv8(Offset);
                StartBit = ((uint32_t) Offset) & 7;
             }
@@ -2443,11 +2439,13 @@ void n32016_exec()
             }
             else
             {
-               Dst.f32  = fabsf(Src.f32);
+               Dst.f32 = fabsf(Src.f32);
             }
          }
          break;
   
+         // Format 12
+         
          case POLY:
          {
             if (Data.Info.Op[0].Size == sz64)
@@ -2504,6 +2502,8 @@ void n32016_exec()
          }
          break;
         
+         // Not found!
+
          default:
          {
             if (Data.Function < TRAP)
@@ -2596,7 +2596,7 @@ void n32016_exec()
 
                   case IRQ:
                   {
-                     if (psr & 0x800)
+                     if (psr & 0x800) //I_FLAG
                      {
                         // IRQ is level sensitive, so the called should maintain the state
                         TakeInterrupt(intbase);
