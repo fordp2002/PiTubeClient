@@ -421,12 +421,18 @@ static void GetGenPhase2(RegLKU gen, int c)
             break;
 
          case TopOfStack:
-            genaddr[c] = GET_SP();
+         {
+            genaddr[c] = GET_SP();              // rmw uses this
             if (((Data.Info.Op[c].Class & 0xF) == (read >> 8)) || ((Data.Info.Op[c].Class & 0xF) == (write >> 8)))
             {
-               gentype[c] = TOS;          // TOS is only for read and write classes
+               gentype[c] = TOS;                // TOS is only for read and write classes
             }
-            break;
+            else if (((Data.Info.Op[c].Class & 0xF) == (addr >> 8)) || (((Data.Info.Op[c].Class & 0xF) == (Regaddr >> 8))))
+            {
+               SET_TRAP(TOSNotSupported);       // Not for these types
+            }
+         }
+         break;
 
          case FpRelative:
             genaddr[c] = GetDisplacement(&Data) + fp;
@@ -1571,13 +1577,6 @@ void n32016_exec()
 
          case TBIT:
          {
-            //Src.u32 = BitPrefix();
-            if (gentype[1] == TOS)
-            {
-               PiWARN("TBIT with base==TOS is not yet implemented\n");
-               goto skip_write; // with next instruction
-            }
-
             F_FLAG = TEST(Dst.u32 & Src.u32);
             goto skip_write;
          }
@@ -1920,12 +1919,6 @@ void n32016_exec()
             uint32_t c;
             uint32_t temp4 = 1;
 
-            if (gentype[0] == TOS)
-            {
-               PiWARN("EXTS with base==TOS is not yet implemented\n");
-               goto skip_write; // with next instruction
-            }
-
             // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
             temp3 = Consume_x8(&Data);
             temp2 = 0;
@@ -2108,20 +2101,7 @@ void n32016_exec()
                goto skip_write; // with next instruction
             }
 
-            if (gentype[0] == TOS)
-            {
-               // base is TOS
-               //
-               // This case is complicated because:
-               //
-               // 1. We need to avoid modifying the stack pointer.
-               //
-               // 2. We potentially need to take account of an offset.
-               //
-               PiWARN("EXT with base==TOS is not yet implemented; offset = %"PRId32"\n", Offset);
-               goto skip_write; // with next instruction
-            }
-            else if (gentype[0] == Register)
+            if (gentype[0] == Register)
             {
                // base is a register
                StartBit = ((uint32_t) Offset) & 31;
@@ -2167,23 +2147,7 @@ void n32016_exec()
                goto skip_write; // with next instruction
             }
 
-            if (gentype[1] == TOS)
-            {
-               // base is TOS
-               //
-               // This case is complicated because:
-               //
-               // 1. We need to avoid modifying the stack pointer,
-               // which might not be an issue as we read then write.
-               //
-               // 2. We potentially need to take account of an offset. This
-               // is harder as our current TOS read/write doesn't allow
-               // for an offset. It's also not clear what this means.
-               //
-               PiWARN("INS with base==TOS is not yet implemented; offset = %"PRId32"\n", Offset);
-               goto skip_write; // with next instruction
-            }
-            else if (gentype[1] == Register)
+            if (gentype[1] == Register)
             {
                // base is a register
                StartBit = ((uint32_t) Offset) & 31;

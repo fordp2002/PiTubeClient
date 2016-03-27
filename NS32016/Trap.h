@@ -25,10 +25,11 @@ enum TrapTypes
    IllegalWritingImmediate = BIT(16),
    FlagInstruction         = BIT(17),
    PrivilegedInstruction   = BIT(18),
-   BreakPointTrap          = BIT(19)
+   BreakPointTrap          = BIT(19),
+   TOSNotSupported         = BIT(20)
 };
 
-#define TrapCount 20
+#define TrapCount 21
 extern uint32_t TrapFlags;
 #define CLEAR_TRAP() TrapFlags &= 0xFF
 

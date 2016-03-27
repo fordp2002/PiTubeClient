@@ -655,7 +655,6 @@ void ShowInstruction(DecodeData* This)
             break;
          }
 
-
          PiTRACE("\n");
 
 #ifdef TEST_SUITE

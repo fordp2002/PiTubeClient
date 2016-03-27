@@ -10,9 +10,11 @@
 #include "mem32016.h"
 #include "Trap.h"
 #include "Profile.h"
+#include "NDis.h"
 
 #ifdef PC_SIMULATION
-uint32_t TrapFlags = INSTRUCTION_PROFILING | PROFILING | SHOW_WRITES | SHOW_INSTRUCTIONS;
+//uint32_t TrapFlags = INSTRUCTION_PROFILING | PROFILING | SHOW_WRITES | SHOW_INSTRUCTIONS;
+uint32_t TrapFlags = SHOW_WRITES | SHOW_INSTRUCTIONS;
 #else
 uint32_t TrapFlags = 0;
 #endif
@@ -38,7 +40,8 @@ const char TrapText[TrapCount][40] =
    "Illegal Writing Immediate",
    "Flag Instuction",
    "Privileged Instruction",
-   "BreakPointTrap"
+   "BreakPointTrap",
+   "TOS not supported"
 };
 
 void ShowTraps(void)
