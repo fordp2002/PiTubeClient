@@ -1919,22 +1919,18 @@ void n32016_exec()
             uint32_t c;
             uint32_t temp4 = 1;
 
-            // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
-            uint32_t temp3 = Consume_x8(&Data);
-            uint32_t temp2 = 0;
-            Src.u32 >>= (temp3 >> 5); // Shift by offset
-            temp3 &= 0x1F; // Mask off the lower 5 Bits which are number of bits to extract
+            uint32_t temp3 = Consume_x8(&Data);                         // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
+            Src.u32 >>= (temp3 >> 5);                                   // Shift by offset
+            temp3 &= 0x1F;                                              // Mask off the lower 5 Bits which are number of bits to extract
 
-            for (c = 0; c <= temp3; c++)
+            Dst.u32 = 0;
+            for (c = 0; c <= temp3; c++, temp4 <<= 1)
             {
-               if (Src.u32 & temp4) // Copy the ones
+               if (Src.u32 & temp4)                                     // Copy the ones
                {
-                  temp2 |= temp4;
+                  Dst.u32 |= temp4;
                }
-
-               temp4 <<= 1;
             }
-            Dst.u32 = temp2;
          }
          break;
 
