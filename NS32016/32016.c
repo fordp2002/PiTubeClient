@@ -991,7 +991,7 @@ uint32_t ReturnCommon(void)
 
 void n32016_exec()
 {
-   uint32_t temp2, temp3;
+   //uint32_t temp2, temp3;
    Temp32Type Src, Dst;
    Temp64Type Src64, Dst64;
    int32_t Disp;
@@ -1134,13 +1134,13 @@ void n32016_exec()
 
          case CXP:
          {
-            temp2 = read_x32(mod + 4) + Disp * 4;
+            uint32_t temp2 = read_x32(mod + 4) + Disp * 4;
 
             uint32_t temp = read_x32(temp2);   // Matching Tail with CXPD, complier do your stuff
             pushd((CXP_UNUSED_WORD << 16) | mod);
             pushd(Data.CurrentAddress);
             mod = temp & 0xFFFF;
-            temp3 = temp >> 16;
+            uint32_t temp3 = temp >> 16;
             sb = read_x32(mod);
             temp2 = read_x32(mod + 8);
             Data.CurrentAddress = temp2 + temp3;
@@ -1151,7 +1151,7 @@ void n32016_exec()
          case RXP:
          {
             Data.CurrentAddress = popd();
-            temp2 = popd();
+            uint32_t temp2 = popd();
             mod = temp2 & 0xFFFF;
             INC_SP(Disp);
             sb = read_x32(mod);
@@ -1268,9 +1268,9 @@ void n32016_exec()
             pushd(Data.StartAddress);
             temp = read_x32(intbase + (5 * 4));
             mod = temp & 0xFFFF;
-            temp3 = temp >> 16;
+            uint32_t temp3 = temp >> 16;
             sb = read_x32(mod);
-            temp2 = read_x32(mod + 8);
+            uint32_t temp2 = read_x32(mod + 8);
             Data.CurrentAddress = temp2 + temp3;
             goto skip_write;
          }
@@ -1287,7 +1287,7 @@ void n32016_exec()
          
          case ADDQ:
          {
-            temp2 = (Data.OpCode >> 7) & 0xF;
+            uint32_t temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
             Dst.u32 = AddCommon(Src.u32, temp2, 0);
          }
@@ -1295,7 +1295,7 @@ void n32016_exec()
 
          case CMPQ:
          {
-            temp2 = (Data.OpCode >> 7) & 0xF;
+            uint32_t temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
             SIGN_EXTEND(Data.Info.Op[0].Size, Src.u32);
             CompareCommon(temp2, Src.u32);
@@ -1305,7 +1305,7 @@ void n32016_exec()
 
          case SPR:
          {
-            temp2 = (Data.OpCode >> 7) & 0xF;
+            uint32_t temp2 = (Data.OpCode >> 7) & 0xF;
 
             if (U_FLAG)
             {
@@ -1361,7 +1361,7 @@ void n32016_exec()
 
          case ACB:
          {
-            temp2 = (Data.OpCode >> 7) & 0xF;
+            uint32_t temp2 = (Data.OpCode >> 7) & 0xF;
             NIBBLE_EXTEND(temp2);
             Dst.u32 = Src.u32 + temp2;
             Disp = GetDisplacement(&Data);
@@ -1379,7 +1379,7 @@ void n32016_exec()
 
          case LPR:
          {
-            temp2 = (Data.OpCode >> 7) & 0xF;
+            uint32_t temp2 = (Data.OpCode >> 7) & 0xF;
 
             if (U_FLAG)
             {
@@ -1437,7 +1437,7 @@ void n32016_exec()
             pushd((CXP_UNUSED_WORD << 16) | mod);
             pushd(Data.CurrentAddress);
             mod = temp & 0xFFFF;
-            temp3 = temp >> 16;
+            uint32_t temp3 = temp >> 16;
             sb = read_x32(mod);
             Src.u32 = read_x32(mod + 8);
             Data.CurrentAddress = Src.u32 + temp3;
@@ -1533,7 +1533,7 @@ void n32016_exec()
 
          case ADDC:
          {
-            temp3 = C_FLAG;
+            uint32_t temp3 = C_FLAG;
             Dst.u32 = AddCommon(Dst.u32, Src.u32, temp3);
          }
          break;
@@ -1570,7 +1570,7 @@ void n32016_exec()
 
          case SUBC:
          {
-            temp3 = C_FLAG;
+            uint32_t temp3 = C_FLAG;
             Dst.u32 = SubCommon(Dst.u32, Src.u32, temp3);
          }
          break;
@@ -1638,7 +1638,7 @@ void n32016_exec()
                goto skip_write;
             }
 
-            temp2 = read_n(r[2], Data.Info.Op[0].Size);
+            uint32_t temp2 = read_n(r[2], Data.Info.Op[0].Size);
 
             if (CompareCommon(temp, temp2) == 0)
             {
@@ -1697,7 +1697,7 @@ void n32016_exec()
          {
             WarnIfShiftInvalid(Src.u32, Data.Info.Op[1].Size);
  
-            temp3 = Data.Info.Op[1].Size * 8;                             // Bit size, compiler will switch to a shift all by itself ;)
+            uint32_t temp3 = Data.Info.Op[1].Size * 8;                             // Bit size, compiler will switch to a shift all by itself ;)
 
             if (Src.u32 & 0xE0)
             {
@@ -1861,7 +1861,7 @@ void n32016_exec()
             uint32_t temp = (GetDisplacement(&Data) & ~(Data.Info.Op[0].Size - 1)) + Data.Info.Op[0].Size;
             while (temp)
             {
-               temp2 = read_x8(Src.u32);
+               uint32_t temp2 = read_x8(Src.u32);
                Src.u32++;
                write_x8(Dst.u32, temp2);
                Dst.u32++;
@@ -1875,13 +1875,13 @@ void n32016_exec()
          case CMPM:
          {
             uint32_t temp4    = Data.Info.Op[0].Size;                                 // disp of 0 means move 1 byte/word/dword
-            temp3 = (GetDisplacement(&Data) / temp4) + 1;
+            uint32_t temp3 = (GetDisplacement(&Data) / temp4) + 1;
 
             //PiTRACE("CMP Size = %u Count = %u\n", temp4, temp3);
             while (temp3--)
             {
                uint32_t temp = read_n(Src.u32, temp4);
-               temp2 = read_n(Dst.u32, temp4);
+               uint32_t temp2 = read_n(Dst.u32, temp4);
  
                if (CompareCommon(temp, temp2) == 0)
                {
@@ -1900,7 +1900,7 @@ void n32016_exec()
          {
             uint32_t c;
 
-            temp3 = Consume_x8(&Data);            // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
+            uint32_t temp3 = Consume_x8(&Data);            // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
 
             // The field can be upto 32 bits, and is independent of the opcode i bits
             for (c = 0; c <= (temp3 & 0x1F); c++)
@@ -1920,8 +1920,8 @@ void n32016_exec()
             uint32_t temp4 = 1;
 
             // Read the immediate offset (3 bits) / length - 1 (5 bits) from the instruction
-            temp3 = Consume_x8(&Data);
-            temp2 = 0;
+            uint32_t temp3 = Consume_x8(&Data);
+            uint32_t temp2 = 0;
             Src.u32 >>= (temp3 >> 5); // Shift by offset
             temp3 &= 0x1F; // Mask off the lower 5 Bits which are number of bits to extract
 
@@ -2177,38 +2177,42 @@ void n32016_exec()
 
          case CHECK:
          {
-            uint32_t temp;
+            Temp32Type Lower, Upper;
 
             switch (Data.Info.Op[0].Size)
             {
                case sz8:
                {
-                  temp = read_x8(Src.u32);
-                  temp2 = read_x8(Src.u32 + sz8);
+                  Upper.u32 = read_x8(Src.u32);
+                  SIGN_EXTEND(sz8, Upper.u32);
+                  Lower.u32 = read_x8(Src.u32 + sz8);
+                  SIGN_EXTEND(sz8, Lower.u32);
                }
                break;
 
                case sz16:
                {
-                  temp = read_x16(Src.u32);
-                  temp2 = read_x16(Src.u32 + sz16);
+                  Upper.u32 = read_x16(Src.u32);
+                  SIGN_EXTEND(sz16, Upper.u32);
+                  Lower.u32 = read_x16(Src.u32 + sz16);
+                  SIGN_EXTEND(sz16, Lower.u32);
                }
                break;
 
                default:
                case sz32:
                {
-                  temp = read_x32(Src.u32);
-                  temp2 = read_x32(Src.u32 + sz32);
+                  Upper.u32 = read_x32(Src.u32);
+                  Lower.u32 = read_x32(Src.u32 + sz32);
                }
                break;
             }
 
             //PiTRACE("Reg = %u Bounds [%u - %u] Index = %u", 0, temp, temp2, temp3);
 
-            if ((temp >= Dst.u32) && (Dst.u32 >= temp2))
+            if ((Dst.s32 >= Lower.s32) && (Dst.s32 <= Upper.s32))
             {
-               r[(Data.OpCode >> 11) & 7] = Dst.u32 - temp2;
+               r[(Data.OpCode >> 11) & 7] = Dst.u32 - Lower.u32;
                F_FLAG = 0;
             }
             else
